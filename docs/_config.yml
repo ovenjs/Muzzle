@@ -1,0 +1,52 @@
+# Site settings
+title: Muzzle Text Filtering System
+description: A comprehensive text filtering library for Node.js with flexible banned words sources
+url: "https://ovendjs.github.io/muzzle" # the base hostname & protocol for your site
+baseurl: "/muzzle" # the subpath of your site, e.g. /blog
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+theme: minima
+
+# Navigation
+header_pages:
+  - index.md
+  - getting-started.md
+  - api-reference.md
+  - examples.md
+  - configuration.md
+
+# Exclude from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+
+# Collections
+collections:
+  api:
+    output: true
+    permalink: /:collection/:name/
+
+# Defaults
+defaults:
+  - scope:
+      path: ""
+      type: "posts"
+    values:
+      layout: "post"
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "page"
+  - scope:
+      path: ""
+      type: "api"
+    values:
+      layout: "api"
