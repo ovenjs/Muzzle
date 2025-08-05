@@ -1,5 +1,13 @@
 /**
  * Configuration system for the Muzzle content filtering system
+ *
+ * This file provides comprehensive configuration management for the Muzzle system,
+ * including validation, loading from various sources (files, environment variables),
+ * and default configuration definitions. The configuration system ensures that
+ * all settings are properly validated and provides detailed error reporting.
+ *
+ * @module config
+ * @description Configuration management system for Muzzle with validation and loading capabilities
  */
 
 import { MuzzleConfig, ValidationResult } from '../types';
@@ -10,8 +18,45 @@ const path = require('path');
 
 /**
  * Configuration validator for Muzzle
+ *
+ * This class provides static methods for validating Muzzle configuration objects.
+ * It performs comprehensive validation of all configuration sections and provides
+ * detailed error and warning messages to help users correct configuration issues.
+ *
+ * @example
+ * ```typescript
+ * const config = { textFiltering: { caseSensitive: true } };
+ * const validation = ConfigValidator.validate(config);
+ * if (validation.errors.length > 0) {
+ *   console.error('Configuration errors:', validation.errors);
+ * }
+ * if (validation.warnings.length > 0) {
+ *   console.warn('Configuration warnings:', validation.warnings);
+ * }
+ * ```
  */
 export class ConfigValidator {
+  /**
+   * Validates a Muzzle configuration object
+   *
+   * This method performs comprehensive validation of all configuration sections
+   * including text filtering, processing, response, and caching settings.
+   * It returns detailed error and warning messages for any issues found.
+   *
+   * @param config - Partial configuration object to validate
+   * @returns ValidationResult object containing arrays of errors and warnings
+   *
+   * @example
+   * ```typescript
+   * const config = {
+   *   textFiltering: {
+   *     bannedWordsSource: { type: 'file' } // Missing filePath
+   *   }
+   * };
+   * const result = ConfigValidator.validate(config);
+   * // result.errors will contain ['File banned words source requires a file path']
+   * ```
+   */
   static validate(config: Partial<MuzzleConfig>): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -47,6 +92,16 @@ export class ConfigValidator {
     return { errors, warnings };
   }
 
+  /**
+   * Validates text filtering configuration
+   *
+   * This method validates all aspects of text filtering configuration including
+   * banned words sources, text length limits, and other text-related settings.
+   *
+   * @param config - Text filtering configuration object to validate
+   * @returns ValidationResult with errors and warnings specific to text filtering
+   * @private
+   */
   private static validateTextFiltering(config: any): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -88,6 +143,16 @@ export class ConfigValidator {
     return { errors, warnings };
   }
 
+  /**
+   * Validates processing configuration
+   *
+   * This method validates processing-related settings including concurrency limits,
+   * batch processing configuration, and timeout settings.
+   *
+   * @param config - Processing configuration object to validate
+   * @returns ValidationResult with errors and warnings specific to processing
+   * @private
+   */
   private static validateProcessing(config: any): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -117,6 +182,16 @@ export class ConfigValidator {
     return { errors, warnings };
   }
 
+  /**
+   * Validates response configuration
+   *
+   * This method validates response formatting settings including format types
+   * and output options.
+   *
+   * @param config - Response configuration object to validate
+   * @returns ValidationResult with errors and warnings specific to response formatting
+   * @private
+   */
   private static validateResponse(config: any): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -129,6 +204,16 @@ export class ConfigValidator {
     return { errors, warnings };
   }
 
+  /**
+   * Validates caching configuration
+   *
+   * This method validates caching-related settings including TTL values,
+   * cache size limits, and cleanup intervals.
+   *
+   * @param config - Caching configuration object to validate
+   * @returns ValidationResult with errors and warnings specific to caching
+   * @private
+   */
   private static validateCaching(config: any): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -149,8 +234,44 @@ export class ConfigValidator {
 
 /**
  * Configuration loader for Muzzle
+ *
+ * This class provides static methods for loading configuration from various sources
+ * including files (JSON, JavaScript) and environment variables. It supports
+ * hierarchical configuration merging where environment variables can override
+ * file-based settings.
+ *
+ * @example
+ * ```typescript
+ * // Load configuration from file and environment variables
+ * const config = await ConfigLoader.load('./config.json', 'MUZZLE_');
+ * console.log(config.debug); // Value from file or environment
+ * ```
  */
 export class ConfigLoader {
+  /**
+   * Loads configuration from multiple sources with environment variable override
+   *
+   * This method loads configuration from a specified file (if provided) and then
+   * overrides any settings with environment variables. Environment variables take
+   * precedence over file-based configuration.
+   *
+   * @param configPath - Optional path to configuration file (JSON or JS)
+   * @param envPrefix - Prefix for environment variables (default: 'MUZZLE_')
+   * @returns Promise that resolves with merged configuration object
+   * @throws {Error} When configuration file cannot be loaded or parsed
+   *
+   * @example
+   * ```typescript
+   * // Load from config.json with MUZZLE_ environment variable prefix
+   * const config = await ConfigLoader.load('./config.json');
+   *
+   * // Load with custom environment variable prefix
+   * const config = await ConfigLoader.load('./config.json', 'APP_');
+   *
+   * // Load only from environment variables
+   * const config = await ConfigLoader.load();
+   * ```
+   */
   static async load(configPath?: string, envPrefix = 'MUZZLE_'): Promise<MuzzleConfig> {
     const config: MuzzleConfig = {};
 
@@ -167,6 +288,28 @@ export class ConfigLoader {
     return config;
   }
 
+  /**
+   * Loads configuration from a file
+   *
+   * This method loads configuration from either JSON or JavaScript files.
+   * It handles file resolution, parsing, and error handling for unsupported formats.
+   * JavaScript files can export either a configuration object or a function that
+   * returns a configuration object.
+   *
+   * @param configPath - Path to the configuration file
+   * @returns Promise that resolves with partial configuration object
+   * @throws {Error} When file is not found, cannot be parsed, or format is unsupported
+   * @private
+   *
+   * @example
+   * ```typescript
+   * // Load from JSON file
+   * const config = await ConfigLoader['loadFromFile']('./config.json');
+   *
+   * // Load from JavaScript file
+   * const config = await ConfigLoader['loadFromFile']('./config.js');
+   * ```
+   */
   private static async loadFromFile(configPath: string): Promise<Partial<MuzzleConfig>> {
     try {
       // Check if we're in a browser environment
@@ -232,6 +375,38 @@ export class ConfigLoader {
     }
   }
 
+  /**
+   * Loads configuration from environment variables
+   *
+   * This method extracts configuration values from environment variables using
+   * a specified prefix. It supports all major configuration sections including
+   * global settings, text filtering, processing, and caching options.
+   *
+   * Supported environment variables:
+   * - {PREFIX}DEBUG: Enable debug mode (true/false)
+   * - {PREFIX}LOG_LEVEL: Set logging level (error/warn/info/debug)
+   * - {PREFIX}TEXT_CASE_SENSITIVE: Enable case-sensitive text filtering (true/false)
+   * - {PREFIX}TEXT_WHOLE_WORD: Enable whole-word matching (true/false)
+   * - {PREFIX}PROCESSING_CONCURRENCY: Set maximum concurrency (number)
+   * - {PREFIX}CACHE_TTL: Set cache TTL in milliseconds (number)
+   *
+   * @param prefix - Prefix for environment variables (e.g., 'MUZZLE_')
+   * @returns Partial configuration object with values from environment variables
+   * @private
+   *
+   * @example
+   * ```typescript
+   * // With environment variables set:
+   * // MUZZLE_DEBUG=true
+   * // MUZZLE_LOG_LEVEL=debug
+   * // MUZZLE_TEXT_CASE_SENSITIVE=false
+   *
+   * const config = ConfigLoader['loadFromEnvironment']('MUZZLE_');
+   * console.log(config.debug); // true
+   * console.log(config.logLevel); // 'debug'
+   * console.log(config.textFiltering?.caseSensitive); // false
+   * ```
+   */
   private static loadFromEnvironment(prefix: string): Partial<MuzzleConfig> {
     const config: Partial<MuzzleConfig> = {};
 
@@ -284,6 +459,29 @@ export class ConfigLoader {
 
 /**
  * Default configuration for Muzzle
+ *
+ * This constant provides the default configuration values used by the Muzzle system.
+ * These values are used as the base configuration that can be overridden by user-provided
+ * settings through the constructor, configuration files, or environment variables.
+ *
+ * The default configuration is designed to provide a good balance between performance
+ * and accuracy for most common use cases. It includes sensible defaults for text filtering,
+ * processing, caching, and response formatting.
+ *
+ * @example
+ * ```typescript
+ * // Use default configuration
+ * const muzzle = new Muzzle();
+ *
+ * // Override specific defaults
+ * const muzzle = new Muzzle({
+ *   config: {
+ *     textFiltering: {
+ *       caseSensitive: true // Override default of false
+ *     }
+ *   }
+ * });
+ * ```
  */
 export const DEFAULT_CONFIG: MuzzleConfig = {
   debug: false,

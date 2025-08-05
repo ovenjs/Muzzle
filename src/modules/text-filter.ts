@@ -1,5 +1,14 @@
 /**
  * Text filtering module for the Muzzle content filtering system
+ *
+ * This module provides the core text filtering functionality for the Muzzle system.
+ * It implements a flexible filtering pipeline that can handle various word sources,
+ * matching strategies, and parameterized word definitions. The module supports
+ * both simple word matching and advanced parameter-based filtering with severity
+ * calculation and context extraction.
+ *
+ * @module text-filter
+ * @description Core text filtering implementation with support for parameterized words and multiple providers
  */
 
 import {
@@ -25,6 +34,30 @@ import { WordParser } from './word-parser';
 
 /**
  * Text filtering implementation
+ *
+ * The TextFilter class provides the main text filtering functionality for the Muzzle system.
+ * It manages word list providers, matching strategies, and parameter handling to provide
+ * comprehensive content filtering capabilities. The class supports various word sources
+ * including strings, arrays, files, URLs, and default word lists.
+ *
+ * @example
+ * ```typescript
+ * const config = {
+ *   caseSensitive: false,
+ *   wholeWord: true,
+ *   bannedWordsSource: {
+ *     type: 'array',
+ *     array: ['badword1', 'badword2']
+ *   }
+ * };
+ *
+ * const textFilter = new TextFilter(config);
+ * await textFilter.initialize();
+ *
+ * const result = await textFilter.filter('This text contains badword1');
+ * console.log(result.matched); // true
+ * console.log(result.matches); // array of match details
+ * ```
  */
 export class TextFilter {
   private config: TextFilteringConfig;
@@ -32,6 +65,24 @@ export class TextFilter {
   private matchingStrategy: MatchingStrategy;
   private initialized = false;
 
+  /**
+   * Creates a new TextFilter instance with the specified configuration
+   *
+   * @param config - Configuration object for text filtering behavior
+   *
+   * @example
+   * ```typescript
+   * const config = {
+   *   caseSensitive: false,
+   *   wholeWord: true,
+   *   bannedWordsSource: {
+   *     type: 'string',
+   *     string: 'badword1,badword2'
+   *   }
+   * };
+   * const textFilter = new TextFilter(config);
+   * ```
+   */
   constructor(config: TextFilteringConfig) {
     this.config = config;
     this.matchingStrategy = new DefaultMatchingStrategy();
@@ -39,6 +90,20 @@ export class TextFilter {
 
   /**
    * Initialize the text filter
+   *
+   * This method initializes the text filter by setting up the appropriate word list provider
+   * based on the banned words source configuration. It must be called before any filtering
+   * operations can be performed. The method is idempotent and can be called multiple times.
+   *
+   * @returns Promise that resolves when initialization is complete
+   * @throws {Error} When initialization fails due to invalid configuration or provider errors
+   *
+   * @example
+   * ```typescript
+   * const textFilter = new TextFilter(config);
+   * await textFilter.initialize();
+   * // Text filter is now ready for filtering operations
+   * ```
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
@@ -97,6 +162,25 @@ export class TextFilter {
 
   /**
    * Filter text for inappropriate content
+   *
+   * This is the core filtering method that analyzes text content against configured
+   * word lists and filtering rules. It returns detailed information about any matches found,
+   * including positions, context, severity, and parameter information.
+   *
+   * @param text - The text content to filter
+   * @param options - Optional filtering parameters to override defaults
+   * @returns Promise that resolves with filtering results including matches and severity
+   *
+   * @example
+   * ```typescript
+   * const result = await textFilter.filter('This text contains bad words', {
+   *   caseSensitive: false,
+   *   wholeWord: true
+   * });
+   * console.log(result.matched); // true if matches found
+   * console.log(result.matches); // array of match details with positions and context
+   * console.log(result.severity); // calculated severity score
+   * ```
    */
   async filter(text: string, options?: TextFilterOptions): Promise<TextMatchResult> {
     if (!this.initialized) {
@@ -184,6 +268,18 @@ export class TextFilter {
 
   /**
    * Refresh dynamic word lists
+   *
+   * This method refreshes the word lists from their source if the provider supports
+   * dynamic refreshing. This is useful for word lists that are loaded from URLs
+   * or files that may change over time.
+   *
+   * @returns Promise that resolves when word lists have been refreshed
+   *
+   * @example
+   * ```typescript
+   * await textFilter.refreshWordLists();
+   * // Word lists are now updated from their source
+   * ```
    */
   async refreshWordLists(): Promise<void> {
     if (this.provider && typeof this.provider.refresh === 'function') {
@@ -193,6 +289,20 @@ export class TextFilter {
 
   /**
    * Get word list statistics
+   *
+   * This method provides statistics about the current word list including word count,
+   * readiness status, and source type information. It's useful for monitoring and
+   * debugging the text filter state.
+   *
+   * @returns Promise that resolves with word list statistics
+   *
+   * @example
+   * ```typescript
+   * const stats = await textFilter.getWordListStats();
+   * console.log(stats.wordCount); // number of words in the list
+   * console.log(stats.ready); // true if the provider is ready
+   * console.log(stats.sourceType); // type of word source (e.g., 'array', 'file', 'url')
+   * ```
    */
   async getWordListStats(): Promise<Record<string, any>> {
     if (!this.provider) {
@@ -209,6 +319,16 @@ export class TextFilter {
 
   /**
    * Clean up resources
+   *
+   * This method properly releases all resources held by the text filter,
+   * including the word list provider and any cached data. It should be called
+   * when the text filter is no longer needed to prevent memory leaks.
+   *
+   * @example
+   * ```typescript
+   * textFilter.dispose();
+   * // All resources have been released
+   * ```
    */
   dispose(): void {
     if (this.provider && typeof this.provider.dispose === 'function') {
@@ -221,6 +341,13 @@ export class TextFilter {
 
   /**
    * Get all words from the provider (backward compatibility)
+   *
+   * This method retrieves all words from the word list provider and removes duplicates.
+   * It's maintained for backward compatibility with older providers that don't support
+   * parameterized words.
+   *
+   * @returns Promise that resolves with array of unique words
+   * @private
    */
   private async getAllWords(): Promise<string[]> {
     if (!this.provider || !this.provider.isReady()) {
@@ -235,6 +362,13 @@ export class TextFilter {
 
   /**
    * Get all parameterized words from the provider
+   *
+   * This method retrieves parameterized words from the provider, with fallback support
+   * for providers that only return simple words. It handles automatic conversion of
+   * simple words to parameterized words based on configuration settings.
+   *
+   * @returns Promise that resolves with array of unique parameterized words
+   * @private
    */
   private async getAllParameterizedWords(): Promise<ParameterizedWord[]> {
     if (!this.provider || !this.provider.isReady()) {
@@ -281,6 +415,14 @@ export class TextFilter {
 
   /**
    * Calculate severity based on word parameters and configuration
+   *
+   * This method calculates a severity score for a word based on its parameters
+   * and the configured severity mapping. It supports both explicit severity values
+   * and type-based severity mapping with fallback to default values.
+   *
+   * @param parameters - Word parameters containing type and severity information
+   * @returns Calculated severity score (0-10)
+   * @private
    */
   private calculateSeverity(parameters: any): number {
     // Get parameter handling configuration
@@ -333,6 +475,13 @@ export class TextFilter {
 
   /**
    * Get parameter handling configuration with proper fallback
+   *
+   * This method retrieves the parameter handling configuration, checking first
+   * the banned words source configuration (which takes precedence) and falling
+   * back to the global text filtering configuration.
+   *
+   * @returns Parameter handling configuration or undefined if not configured
+   * @private
    */
   private getParameterHandlingConfig(): ParameterHandlingConfig | undefined {
     // Check banned words source configuration first (overrides global)
@@ -346,6 +495,14 @@ export class TextFilter {
 
   /**
    * Preprocess text for better matching
+   *
+   * This method applies basic preprocessing to text to improve matching accuracy.
+   * Currently it normalizes whitespace and trims leading/trailing spaces, but
+   * can be extended to support additional preprocessing steps.
+   *
+   * @param text - The text to preprocess
+   * @returns Preprocessed text
+   * @private
    */
   private preprocessText(text: string): string {
     // Basic preprocessing - can be extended
