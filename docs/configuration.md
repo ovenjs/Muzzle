@@ -4,108 +4,110 @@ title: Configuration Guide
 permalink: /configuration/
 ---
 
-# Configuration Guide
+# ⚙️ Configuration Guide
 
 This guide provides detailed information about configuring Muzzle for different use cases and environments.
 
-## Overview
+## 📋 Overview
 
-Muzzle uses a flexible configuration system that allows you to customize every aspect of the text filtering behavior. Configuration is done through the `MuzzleConfig` interface, which supports various options for text filtering, processing, caching, and response formatting.
+Muzzle uses a flexible configuration system that allows you to customize every aspect of the text filtering behavior. Configuration is done through the `MuzzleConfig` interface, which supports various options for text filtering, processing, and response formatting.
 
-## Basic Configuration Structure
+## 🏗️ Basic Configuration Structure
 
 ```typescript
+import { MuzzleConfig } from '@ovendjs/muzzle';
+
 interface MuzzleConfig {
-  // Global settings
-  debug?: boolean;
-  logLevel?: 'error' | 'warn' | 'info' | 'debug';
-  
   // Text filtering configuration
   textFiltering?: TextFilteringConfig;
   
   // Processing configuration
   processing?: ProcessingConfig;
-  
-  // Caching configuration
-  caching?: CacheConfig;
-  
-  // Response configuration
-  response?: ResponseConfig;
 }
 ```
 
-## Text Filtering Configuration
+> **💡 Tip**: Most applications only need to configure `textFiltering`. The other sections are optional and provide advanced customization options.
 
-### Banned Words Sources
+## 🎯 Text Filtering Configuration
+
+### 📚 Banned Words Sources
 
 Muzzle supports multiple sources for banned words. Each source type has its own configuration options.
 
-#### String Source
+#### 📝 String Source
 
 Use comma-separated strings for simple word lists.
 
 ```typescript
-const config = {
+import { MuzzleConfig } from '@ovendjs/muzzle';
+
+const config: MuzzleConfig = {
   textFiltering: {
     bannedWordsSource: {
       type: 'string',
-      string: 'badword,profanity,swear,curse,hate'
+      string: 'badword,profanity,swear,curse,hate,violence'
     }
   }
 };
 ```
 
-**Best for:**
+**✅ Best for:**
 - Small, static word lists
 - Quick prototyping
 - Simple applications
+- Testing and development
 
-**Options:**
+**⚙️ Options:**
 - `string`: Comma-separated list of banned words
 
-#### Array Source
+#### 📋 Array Source
 
 Use JavaScript arrays for programmatic word lists.
 
 ```typescript
-const config = {
+const config: MuzzleConfig = {
   textFiltering: {
     bannedWordsSource: {
       type: 'array',
-      array: ['badword', 'profanity', 'swear', 'curse', 'hate']
+      array: [
+        'badword',
+        'profanity',
+        'swear',
+        { word: 'hate', parameters: { type: 'hate', severity: 8 } },
+        { word: 'violence', parameters: { type: 'violence', severity: 7 } }
+      ]
     }
   }
 };
 ```
 
-**Best for:**
+**✅ Best for:**
 - Dynamically generated word lists
 - Multi-language support
 - Complex word categorization
+- Parameterized words with metadata
 
-**Options:**
-- `array`: Array of banned words
+**⚙️ Options:**
+- `array`: Array of banned words (strings or objects with parameters)
 
-#### File Source
+#### 📁 File Source
 
 Load banned words from local files in various formats.
 
 ```typescript
-const config = {
+const config: MuzzleConfig = {
   textFiltering: {
     bannedWordsSource: {
       type: 'file',
-      filePath: '/path/to/banned-words.txt',
-      format: 'text', // 'text', 'csv', or 'json'
+      path: './banned-words.txt',
       refreshInterval: 3600000, // 1 hour
-      cache: true,
-      ttl: 1800000 // 30 minutes
+      cache: true
     }
   }
 };
 ```
 
-**Supported Formats:**
+**📄 Supported Formats:**
 
 **Text Format (.txt):**
 ```
@@ -113,13 +115,8 @@ badword
 profanity
 swear
 curse
-```
-
-**CSV Format (.csv):**
-```csv
-badword
-profanity
-swear
+hate
+violence
 ```
 
 **JSON Format (.json):**
@@ -128,88 +125,90 @@ swear
   "badword",
   "profanity",
   "swear",
-  "curse"
+  "curse",
+  {
+    "word": "hate",
+    "parameters": {
+      "type": "hate",
+      "severity": 8
+    }
+  }
 ]
 ```
 
-**Best for:**
+**✅ Best for:**
 - Large word lists
 - Shared word lists across applications
 - Version-controlled word lists
+- Custom word lists managed separately
 
-**Options:**
-- `filePath`: Path to the word list file
-- `format`: File format ('text', 'csv', or 'json')
+**⚙️ Options:**
+- `path`: Path to the word list file
 - `refreshInterval`: How often to check for file changes (milliseconds)
 - `cache`: Whether to cache the word list in memory
-- `ttl`: Cache time-to-live (milliseconds)
 
-#### URL Source
+#### 🌐 URL Source
 
 Fetch banned words from remote URLs with automatic refresh.
 
 ```typescript
-const config = {
+const config: MuzzleConfig = {
   textFiltering: {
     bannedWordsSource: {
       type: 'url',
-      url: 'https://example.com/banned-words.txt',
-      format: 'text',
+      url: 'https://raw.githubusercontent.com/coffee-and-fun/google-profanity-words/main/data/en.txt',
       refreshInterval: 86400000, // 24 hours
       cache: true,
-      ttl: 43200000, // 12 hours
       timeout: 10000 // 10 seconds
     }
   }
 };
 ```
 
-**Best for:**
+**✅ Best for:**
 - Centrally managed word lists
 - Dynamic word lists that change frequently
 - Multi-application deployments
+- Community-maintained word lists
 
-**Options:**
+**⚙️ Options:**
 - `url`: URL to fetch the word list from
-- `format`: Expected format ('text', 'csv', or 'json')
 - `refreshInterval`: How often to refresh the word list (milliseconds)
 - `cache`: Whether to cache the word list
-- `ttl`: Cache time-to-live (milliseconds)
 - `timeout`: Request timeout (milliseconds)
 
-#### Default Source
+#### 🏁 Default Source
 
 Use the built-in GitHub profanity words list.
 
 ```typescript
-const config = {
+const config: MuzzleConfig = {
   textFiltering: {
     bannedWordsSource: {
       type: 'default',
       refreshInterval: 86400000, // 24 hours
-      cache: true,
-      ttl: 43200000 // 12 hours
+      cache: true
     }
   }
 };
 ```
 
-**Best for:**
+**✅ Best for:**
 - Quick start
 - General-purpose content filtering
 - Applications without custom word lists
+- Testing and evaluation
 
-**Options:**
+**⚙️ Options:**
 - `refreshInterval`: How often to refresh the word list (milliseconds)
 - `cache`: Whether to cache the word list
-- `ttl`: Cache time-to-live (milliseconds)
 
-### Matching Options
+### 🔍 Matching Options
 
 Configure how words are matched in the text.
 
 ```typescript
-const config = {
+const config: MuzzleConfig = {
   textFiltering: {
     bannedWordsSource: {
       type: 'string',
@@ -217,36 +216,65 @@ const config = {
     },
     caseSensitive: false,    // Match case-insensitively
     wholeWord: true,        // Match whole words only
-    exactPhrase: false,      // Don't require exact phrase matching
-    useRegex: false         // Don't use regex patterns
+    exactPhrase: false      // Don't require exact phrase matching
   }
 };
 ```
 
-**Options:**
+**⚙️ Options:**
 
-- `caseSensitive` (boolean, default: false)
-  - `true`: Match words with exact case
-  - `false`: Match words ignoring case
-  
-- `wholeWord` (boolean, default: true)
-  - `true`: Match only whole words (e.g., "bad" won't match "badminton")
-  - `false`: Match partial words (e.g., "bad" will match "badminton")
-  
-- `exactPhrase` (boolean, default: false)
-  - `true`: Match exact phrases only
-  - `false`: Match individual words
-  
-- `useRegex` (boolean, default: false)
-  - `true`: Treat banned words as regex patterns
-  - `false`: Treat banned words as literal strings
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `caseSensitive` | `boolean` | `false` | Match words with exact case |
+| `wholeWord` | `boolean` | `false` | Match only whole words (e.g., "bad" won't match "badminton") |
+| `exactPhrase` | `boolean` | `false` | Match exact phrases only |
 
-### Performance Options
+**📋 Examples:**
+
+```typescript
+// Case-insensitive matching (default)
+const config1 = {
+  textFiltering: {
+    bannedWordsSource: { type: 'string', string: 'badword' },
+    caseSensitive: false
+  }
+};
+// Matches: "badword", "BadWord", "BADWORD"
+
+// Case-sensitive matching
+const config2 = {
+  textFiltering: {
+    bannedWordsSource: { type: 'string', string: 'badword' },
+    caseSensitive: true
+  }
+};
+// Matches: "badword" only
+
+// Whole word matching
+const config3 = {
+  textFiltering: {
+    bannedWordsSource: { type: 'string', string: 'bad' },
+    wholeWord: true
+  }
+};
+// Matches: "bad" but not "badminton"
+
+// Partial word matching
+const config4 = {
+  textFiltering: {
+    bannedWordsSource: { type: 'string', string: 'bad' },
+    wholeWord: false
+  }
+};
+// Matches: "bad", "badminton", "badass"
+```
+
+### ⚡ Performance Options
 
 Configure performance-related settings.
 
 ```typescript
-const config = {
+const config: MuzzleConfig = {
   textFiltering: {
     bannedWordsSource: {
       type: 'string',
@@ -258,88 +286,25 @@ const config = {
 };
 ```
 
-**Options:**
+**⚙️ Options:**
 
-- `maxTextLength` (number, default: 1000000)
-  - Maximum length of text to process (characters)
-  - Longer texts will be truncated
-  
-- `preprocessText` (boolean, default: true)
-  - `true`: Normalize whitespace and clean text before processing
-  - `false`: Process text as-is
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `maxTextLength` | `number` | `1000000` | Maximum length of text to process (characters) |
+| `preprocessText` | `boolean` | `true` | Normalize whitespace and clean text before processing |
 
-## Parameter Handling Configuration
+**💡 Performance Tips:**
 
-Configure how parameterized words are handled and processed.
+- Set `maxTextLength` to a reasonable value for your use case to prevent processing very large texts
+- Enable `preprocessText` for better matching accuracy (recommended)
+- Use batch processing for filtering multiple texts
+- Enable caching for URL and file-based word lists
 
-```typescript
-const config = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'string',
-      string: 'badword[type=slur][severity=8],profanity[type=profanity][severity=5]'
-    },
-    parameterHandling: {
-      defaultParameters: {
-        type: 'unknown'
-      },
-      includeParametersInResults: true,
-      autoConvertNonParameterized: true,
-      severityMapping: {
-        defaultSeverity: 1,
-        byType: {
-          'slur': 8,
-          'profanity': 5,
-          'hate': 9,
-          'harassment': 7,
-          'violence': 6,
-          'adult': 4,
-          'unknown': 1
-        }
-      },
-      parameterValidation: {
-        required: ['type'],
-        allowedTypes: {
-          'type': 'string',
-          'severity': 'number',
-          'blocked': 'boolean'
-        },
-        constraints: {
-          'severity': {
-            min: 0,
-            max: 10
-          }
-        }
-      }
-    }
-  }
-};
-```
+## 🏷️ Parameterized Words
 
-### Parameter Handling Options
+Parameterized words allow you to add metadata to banned words for more sophisticated filtering and categorization.
 
-- `defaultParameters` (object)
-  - Default parameters to apply to non-parameterized words
-  - Useful for ensuring all words have consistent metadata
-  
-- `includeParametersInResults` (boolean, default: true)
-  - Whether to include word parameters in filter results
-  - Set to false to reduce response size if parameters aren't needed
-  
-- `autoConvertNonParameterized` (boolean, default: true)
-  - Whether to automatically convert simple words to parameterized words
-  - Ensures backward compatibility with existing word lists
-  
-- `severityMapping` (object)
-  - `defaultSeverity` (number): Default severity level for words without explicit severity
-  - `byType` (object): Severity mapping by word type
-  
-- `parameterValidation` (object)
-  - `required` (array): List of required parameter names
-  - `allowedTypes` (object): Parameter type validation rules
-  - `constraints` (object): Parameter value constraints
-
-### Parameterized Word Formats
+### 📝 Parameterized Word Formats
 
 Muzzle supports multiple formats for parameterized words:
 
@@ -348,6 +313,7 @@ Muzzle supports multiple formats for parameterized words:
 // Simple parameterized words
 'badword[type=slur][severity=8]'
 'profanity[type=profanity][severity=5][blocked=true]'
+'hate[type=hate][severity=9]'
 ```
 
 #### Object Format
@@ -378,12 +344,132 @@ Muzzle supports multiple formats for parameterized words:
 ]
 ```
 
-## Processing Configuration
+### ⚙️ Parameter Handling Configuration
+
+Configure how parameterized words are handled and processed.
+
+```typescript
+const config: MuzzleConfig = {
+  textFiltering: {
+    bannedWordsSource: {
+      type: 'string',
+      string: 'badword[type=slur][severity=8],profanity[type=profanity][severity=5]'
+    },
+    parameterHandling: {
+      defaultParameters: {
+        type: 'unknown'
+      },
+      includeParametersInResults: true,
+      autoConvertNonParameterized: true,
+      severityMapping: {
+        defaultSeverity: 1,
+        byType: {
+          'slur': 8,
+          'profanity': 5,
+          'hate': 9,
+          'harassment': 7,
+          'violence': 6,
+          'adult': 4,
+          'unknown': 1
+        }
+      }
+    }
+  }
+};
+```
+
+**⚙️ Parameter Handling Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `defaultParameters` | `object` | `{}` | Default parameters to apply to non-parameterized words |
+| `includeParametersInResults` | `boolean` | `true` | Whether to include word parameters in filter results |
+| `autoConvertNonParameterized` | `boolean` | `true` | Whether to automatically convert simple words to parameterized words |
+| `severityMapping` | `object` | - | Severity mapping configuration |
+
+**📊 Severity Mapping Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `defaultSeverity` | `number` | `1` | Default severity level for words without explicit severity |
+| `byType` | `object` | `{}` | Severity mapping by word type |
+
+### 🎯 Using Parameterized Words
+
+Parameterized words enable sophisticated content filtering based on categories and severity levels:
+
+```typescript
+const config: MuzzleConfig = {
+  textFiltering: {
+    bannedWordsSource: {
+      type: 'string',
+      string: `
+        badword[type=profanity][severity=3],
+        hate[type=hate][severity=9],
+        violence[type=violence][severity=7],
+        slur[type=slur][severity=8]
+      `
+    },
+    parameterHandling: {
+      includeParametersInResults: true,
+      severityMapping: {
+        defaultSeverity: 1,
+        byType: {
+          'profanity': 3,
+          'hate': 9,
+          'violence': 7,
+          'slur': 8
+        }
+      }
+    }
+  }
+};
+
+const muzzle = new Muzzle({ config });
+await muzzle.initialize();
+
+const result = await muzzle.filterText('This contains hate speech and profanity');
+
+if (result.matched) {
+  console.log('Matches found:');
+  result.matches?.forEach(match => {
+    console.log(`- Word: ${match.word}`);
+    console.log(`  Type: ${match.parameters?.type}`);
+    console.log(`  Severity: ${match.parameters?.severity}`);
+    console.log(`  Position: ${match.position}`);
+  });
+  
+  // Calculate overall severity
+  const maxSeverity = Math.max(...result.matches.map(m => m.parameters?.severity || 1));
+  console.log(`Overall severity: ${maxSeverity}/10`);
+}
+```
+
+**🔍 Use Cases for Parameterized Words:**
+
+1. **Content Moderation Tiers**:
+   - Low severity (1-3): Warning or flag for review
+   - Medium severity (4-6): Automatic removal with user notification
+   - High severity (7-8): Immediate removal and temporary suspension
+   - Critical severity (9-10): Immediate removal and permanent ban
+
+2. **Category-Based Actions**:
+   - Profanity: Replace with asterisks
+   - Hate speech: Immediate removal and report
+   - Violence: Remove and escalate to moderators
+   - Harassment: Remove and initiate safety protocols
+
+3. **Context-Aware Filtering**:
+   - Different rules for different content types
+   - Age-appropriate filtering based on user demographics
+   - Cultural sensitivity adjustments
+
+## 🚀 Processing Configuration
 
 Configure how text is processed and filtered.
 
 ```typescript
-const config = {
+const config: MuzzleConfig = {
   processing: {
     async: true,  // Enable asynchronous processing
     batch: {
@@ -403,136 +489,129 @@ const config = {
 };
 ```
 
-**Options:**
+**⚙️ Options:**
 
-- `async` (boolean, default: true)
-  - Enable asynchronous processing for better performance
-  
-- `batch` (object)
-  - `enabled` (boolean): Enable batch processing
-  - `size` (number): Default batch size
-  - `timeout` (number): Batch processing timeout (milliseconds)
-  
-- `concurrency` (object)
-  - `max` (number): Maximum concurrent operations
-  - `queueSize` (number): Maximum queue size for pending operations
-  
-- `timeout` (object)
-  - `text` (number): Timeout for individual text filtering (milliseconds)
-  - `overall` (number): Overall timeout for operations (milliseconds)
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `async` | `boolean` | `true` | Enable asynchronous processing for better performance |
+| `batch` | `object` | - | Batch processing configuration |
+| `concurrency` | `object` | - | Concurrency control configuration |
+| `timeout` | `object` | - | Timeout configuration |
 
-## Caching Configuration
+**📋 Batch Processing Options:**
 
-Configure caching behavior for improved performance.
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | `boolean` | `true` | Enable batch processing |
+| `size` | `number` | `50` | Default batch size |
+| `timeout` | `number` | `30000` | Batch processing timeout (milliseconds) |
 
-```typescript
-const config = {
-  caching: {
-    defaultTTL: 3600000,     // 1 hour
-    maxSize: 1000,
-    cleanupInterval: 300000, // 5 minutes
-    backend: {
-      type: 'memory',
-      config: {}
-    }
-  }
-};
-```
+**📋 Concurrency Options:**
 
-**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `max` | `number` | `10` | Maximum concurrent operations |
+| `queueSize` | `number` | `100` | Maximum queue size for pending operations |
 
-- `defaultTTL` (number, default: 3600000)
-  - Default time-to-live for cache entries (milliseconds)
-  
-- `maxSize` (number, default: 1000)
-  - Maximum number of items in cache
-  
-- `cleanupInterval` (number, default: 300000)
-  - Interval for cache cleanup (milliseconds)
-  
-- `backend` (object)
-  - `type` (string): Cache backend type ('memory', 'file', 'custom')
-  - `config` (object): Backend-specific configuration
+**📋 Timeout Options:**
 
-## Response Configuration
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `text` | `number` | `10000` | Timeout for individual text filtering (milliseconds) |
+| `overall` | `number` | `30000` | Overall timeout for operations (milliseconds) |
 
-Configure how filtering results are formatted and returned.
+**💡 Performance Tips:**
 
-```typescript
-const config = {
-  response: {
-    format: 'detailed',           // 'simple', 'detailed', 'json', 'xml'
-    includeMatches: true,        // Include matched words in response
-    includeSeverity: true,       // Include severity scores
-    includeMetadata: true,       // Include processing metadata
-    formatter: (result) => {
-      // Custom response formatter
-      return {
-        success: !result.text?.matched,
-        score: result.severity,
-        issues: result.text?.matches || []
-      };
-    }
-  }
-};
-```
+- Enable batch processing for filtering multiple texts
+- Adjust concurrency based on your server capabilities
+- Set appropriate timeouts to prevent hanging operations
+- Monitor performance metrics and adjust as needed
 
-**Options:**
-
-- `format` (string, default: 'detailed')
-  - Response format ('simple', 'detailed', 'json', 'xml')
-  
-- `includeMatches` (boolean, default: true)
-  - Include matched words in the response
-  
-- `includeSeverity` (boolean, default: true)
-  - Include severity scores in the response
-  
-- `includeMetadata` (boolean, default: true)
-  - Include processing metadata in the response
-  
-- `formatter` (function)
-  - Custom response formatter function
-
-## Environment Variables
+## 🌍 Environment Variables
 
 Muzzle can be configured using environment variables with the `MUZZLE_` prefix:
 
 ```bash
-# Global settings
-MUZZLE_DEBUG=true
-MUZZLE_LOG_LEVEL=debug
-
 # Text filtering settings
 MUZZLE_TEXT_CASE_SENSITIVE=false
 MUZZLE_TEXT_WHOLE_WORD=true
+MUZZLE_TEXT_MAX_TEXT_LENGTH=1000000
 
 # Processing settings
-MUZZLE_PROCESSING_CONCURRENCY=10
+MUZZLE_PROCESSING_ASYNC=true
+MUZZLE_PROCESSING_BATCH_SIZE=50
+MUZZLE_PROCESSING_CONCURRENCY_MAX=10
 
-# Caching settings
-MUZZLE_CACHE_TTL=3600000
+# Banned words source settings
+MUZZLE_TEXT_BANNED_WORDS_SOURCE_TYPE=string
+MUZZLE_TEXT_BANNED_WORDS_SOURCE_STRING=badword,profanity,swear
 ```
 
-## Configuration Examples
+**📋 Supported Environment Variables:**
 
-### High-Performance Web Application
+| Variable | Type | Description |
+|----------|------|-------------|
+| `MUZZLE_TEXT_CASE_SENSITIVE` | `boolean` | Enable case-sensitive matching |
+| `MUZZLE_TEXT_WHOLE_WORD` | `boolean` | Enable whole-word matching |
+| `MUZZLE_TEXT_MAX_TEXT_LENGTH` | `number` | Maximum text length to process |
+| `MUZZLE_PROCESSING_ASYNC` | `boolean` | Enable asynchronous processing |
+| `MUZZLE_PROCESSING_BATCH_SIZE` | `number` | Default batch size |
+| `MUZZLE_PROCESSING_CONCURRENCY_MAX` | `number` | Maximum concurrent operations |
+| `MUZZLE_TEXT_BANNED_WORDS_SOURCE_TYPE` | `string` | Banned words source type |
+| `MUZZLE_TEXT_BANNED_WORDS_SOURCE_STRING` | `string` | String source content |
+| `MUZZLE_TEXT_BANNED_WORDS_SOURCE_URL` | `string` | URL source location |
+| `MUZZLE_TEXT_BANNED_WORDS_SOURCE_PATH` | `string` | File source path |
+
+**💡 Usage Example:**
 
 ```typescript
-const config = {
+// .env file
+MUZZLE_TEXT_CASE_SENSITIVE=false
+MUZZLE_TEXT_WHOLE_WORD=true
+MUZZLE_TEXT_BANNED_WORDS_SOURCE_TYPE=string
+MUZZLE_TEXT_BANNED_WORDS_SOURCE_STRING=badword,profanity,swear
+
+// application.ts
+import { config } from 'dotenv';
+import { Muzzle } from '@ovendjs/muzzle';
+
+config(); // Load environment variables
+
+// Muzzle will automatically use environment variables
+const muzzle = new Muzzle();
+await muzzle.initialize();
+```
+
+## 📋 Configuration Examples
+
+### 🚀 High-Performance Web Application
+
+```typescript
+import { MuzzleConfig } from '@ovendjs/muzzle';
+
+const config: MuzzleConfig = {
   textFiltering: {
     bannedWordsSource: {
       type: 'url',
       url: 'https://cdn.example.com/banned-words.txt',
-      format: 'text',
       refreshInterval: 86400000, // 24 hours
-      cache: true,
-      ttl: 43200000 // 12 hours
+      cache: true
     },
     caseSensitive: false,
     wholeWord: true,
     maxTextLength: 50000,
-    preprocessText: true
+    preprocessText: true,
+    parameterHandling: {
+      includeParametersInResults: true,
+      severityMapping: {
+        defaultSeverity: 1,
+        byType: {
+          'profanity': 3,
+          'hate': 8,
+          'violence': 7
+        }
+      }
+    }
   },
   processing: {
     async: true,
@@ -549,25 +628,22 @@ const config = {
       text: 5000,
       overall: 15000
     }
-  },
-  caching: {
-    defaultTTL: 7200000, // 2 hours
-    maxSize: 2000,
-    cleanupInterval: 600000 // 10 minutes
-  },
-  response: {
-    format: 'detailed',
-    includeMatches: true,
-    includeSeverity: true,
-    includeMetadata: false
   }
 };
 ```
 
-### Simple Chat Application
+**✅ Best for:**
+- High-traffic web applications
+- Social media platforms
+- Content-heavy websites
+- Real-time chat applications
+
+### 💬 Simple Chat Application
 
 ```typescript
-const config = {
+import { MuzzleConfig } from '@ovendjs/muzzle';
+
+const config: MuzzleConfig = {
   textFiltering: {
     bannedWordsSource: {
       type: 'string',
@@ -582,34 +658,45 @@ const config = {
       text: 3000,
       overall: 5000
     }
-  },
-  response: {
-    format: 'simple',
-    includeMatches: true,
-    includeSeverity: false,
-    includeMetadata: false
   }
 };
 ```
 
-### Content Management System
+**✅ Best for:**
+- Small to medium chat applications
+- Real-time messaging
+- Gaming chat systems
+- Community forums
+
+### 📰 Content Management System
 
 ```typescript
-const config = {
+import { MuzzleConfig } from '@ovendjs/muzzle';
+
+const config: MuzzleConfig = {
   textFiltering: {
     bannedWordsSource: {
       type: 'file',
-      filePath: '/etc/muzzle/content-words.json',
-      format: 'json',
+      path: '/etc/muzzle/content-words.json',
       refreshInterval: 1800000, // 30 minutes
-      cache: true,
-      ttl: 900000 // 15 minutes
+      cache: true
     },
     caseSensitive: false,
     wholeWord: true,
-    exactPhrase: false,
     maxTextLength: 100000,
-    preprocessText: true
+    preprocessText: true,
+    parameterHandling: {
+      includeParametersInResults: true,
+      severityMapping: {
+        defaultSeverity: 1,
+        byType: {
+          'profanity': 3,
+          'hate': 8,
+          'violence': 7,
+          'adult': 5
+        }
+      }
+    }
   },
   processing: {
     async: true,
@@ -622,22 +709,64 @@ const config = {
       max: 5,
       queueSize: 50
     }
-  },
-  caching: {
-    defaultTTL: 3600000, // 1 hour
-    maxSize: 500,
-    cleanupInterval: 300000 // 5 minutes
-  },
-  response: {
-    format: 'detailed',
-    includeMatches: true,
-    includeSeverity: true,
-    includeMetadata: true
   }
 };
 ```
 
-## Configuration Validation
+**✅ Best for:**
+- Blog platforms
+- News websites
+- Content aggregation sites
+- Educational platforms
+
+### 🎮 Gaming Platform with Severity Levels
+
+```typescript
+import { MuzzleConfig } from '@ovendjs/muzzle';
+
+const config: MuzzleConfig = {
+  textFiltering: {
+    bannedWordsSource: {
+      type: 'string',
+      string: `
+        damn[type=profanity][severity=2],
+        crap[type=profanity][severity=3],
+        hate[type=hate][severity=9],
+        kill[type=violence][severity=6],
+        rape[type=violence][severity=10]
+      `
+    },
+    caseSensitive: false,
+    wholeWord: true,
+    parameterHandling: {
+      includeParametersInResults: true,
+      severityMapping: {
+        defaultSeverity: 1,
+        byType: {
+          'profanity': 3,
+          'hate': 9,
+          'violence': 7
+        }
+      }
+    }
+  },
+  processing: {
+    async: true,
+    timeout: {
+      text: 2000,
+      overall: 5000
+    }
+  }
+};
+```
+
+**✅ Best for:**
+- Online gaming platforms
+- Voice chat systems
+- Player messaging
+- Community moderation
+
+## ✅ Configuration Validation
 
 Muzzle automatically validates configuration on initialization. Validation errors will be thrown as exceptions:
 
@@ -645,19 +774,25 @@ Muzzle automatically validates configuration on initialization. Validation error
 try {
   const muzzle = new Muzzle({ config });
   await muzzle.initialize();
+  console.log('✅ Configuration is valid');
 } catch (error) {
-  console.error('Configuration error:', error.message);
+  console.error('❌ Configuration error:', error.message);
   // Handle configuration errors
 }
 ```
 
-Common validation errors include:
-- Missing required fields for banned words sources
-- Invalid file paths or URLs
-- Invalid numeric values (negative timeouts, etc.)
-- Unsupported configuration options
+**🚨 Common Validation Errors:**
 
-## Dynamic Configuration Updates
+| Error | Description | Solution |
+|-------|-------------|----------|
+| `INVALID_CONFIG` | Invalid configuration object | Check configuration structure |
+| `MISSING_REQUIRED_FIELD` | Missing required field | Add missing field to configuration |
+| `INVALID_WORD_LIST_SOURCE` | Invalid word list source | Check source type and options |
+| `INVALID_FILE_PATH` | Invalid file path | Verify file exists and is accessible |
+| `INVALID_URL` | Invalid URL | Check URL format and accessibility |
+| `INVALID_NUMERIC_VALUE` | Invalid numeric value | Ensure positive numbers where required |
+
+## 🔄 Dynamic Configuration Updates
 
 Muzzle supports updating configuration at runtime:
 
@@ -677,35 +812,51 @@ await muzzle.updateConfig({
 ```
 
 When updating configuration, Muzzle will:
-1. Validate the new configuration
-2. Dispose of existing resources
-3. Reinitialize with the new configuration
-4. Continue processing with updated settings
+1. ✅ Validate the new configuration
+2. 🧹 Dispose of existing resources
+3. 🔄 Reinitialize with the new configuration
+4. ⚡ Continue processing with updated settings
 
-## Best Practices
+**💡 Use Cases for Dynamic Updates:**
 
-1. **Choose the Right Word List Source**
+- Adding new banned words without restarting
+- Switching between different word lists for different contexts
+- Adjusting filtering strictness based on user feedback
+- Updating severity mappings based on moderation policies
+
+## 🎯 Best Practices
+
+### 1. Choose the Right Word List Source
    - Use `string` or `array` for small, static word lists
    - Use `file` for large, version-controlled word lists
    - Use `url` for centrally managed, dynamic word lists
    - Use `default` for general-purpose filtering
 
-2. **Configure Caching Appropriately**
+### 2. Configure Caching Appropriately
    - Enable caching for URL and file sources
    - Set appropriate TTL values based on how often word lists change
    - Monitor cache memory usage in production
 
-3. **Optimize Performance**
+### 3. Optimize Performance
    - Use batch processing for multiple texts
    - Set appropriate concurrency limits
    - Configure timeouts based on your use case
 
-4. **Handle Errors Gracefully**
+### 4. Handle Errors Gracefully
    - Always wrap initialization in try-catch blocks
    - Implement fallback mechanisms for URL-based sources
    - Monitor for configuration validation errors
 
-5. **Monitor and Adjust**
+### 5. Monitor and Adjust
    - Use the status API to monitor system health
    - Adjust configuration based on performance metrics
    - Regularly review and update word lists
+
+### 6. Use Parameterized Words for Sophisticated Filtering
+   - Categorize words by type and severity
+   - Implement different actions based on severity levels
+   - Use context-aware filtering for better user experience
+
+---
+
+**Need help?** Check out our [GitHub repository](https://github.com/your-org/muzzle) or open an issue for support.
