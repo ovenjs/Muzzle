@@ -2,7 +2,7 @@
 title: Muzzle Text Filtering
 description: A comprehensive text filtering library for Node.js with flexible banned words sources
 url: "https://ovendjs.github.io/Muzzle" # the base hostname & protocol for your site
-baseurl: "/muzzle" # the subpath of your site, e.g. /blog
+baseurl: "/Muzzle" # the subpath of your site, e.g. /blog
 
 # Build settings
 markdown: kramdown
