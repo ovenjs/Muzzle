@@ -1,678 +1,1482 @@
 ---
 layout: page
-title: Discord Bot Content Moderation
+title: Discord Bot Moderation
 permalink: /examples/discord-bot-moderation/
 ---
 
-# Discord Bot Content Moderation
+# Discord Bot Moderation Example
+
+This example demonstrates how to create a Discord bot that automatically moderates messages using Muzzle to filter inappropriate content in real-time.
 
 ## 🎯 Problem Statement
 
-You're building a Discord bot for a community server and need to automatically moderate messages to maintain a safe and friendly environment. You want to:
-
-- Automatically delete messages containing inappropriate content
-- Warn users when their messages are removed
-- Log moderation actions for server administrators
+We want to build a Discord bot that can:
+- Scan messages in channels for inappropriate content
+- Automatically delete messages that violate content policies
+- Send warnings to users who violate policies
+- Keep track of violations for potential further action
 - Allow moderators to configure filtering settings
-- Handle different levels of content severity appropriately
 
 ## 📋 Prerequisites
 
 - Node.js installed on your system
-- A Discord bot token from the Discord Developer Portal
-- Basic knowledge of Discord.js
-- Familiarity with TypeScript
-- Muzzle library installed (`npm install @ovendjs/muzzle`)
+- A Discord account and a server where you have administrator permissions
+- Basic knowledge of JavaScript/TypeScript
+- Familiarity with Discord.js library
+- A code editor of your choice
 
-## 💻 Implementation
+## 🚀 Implementation
 
-### Complete Example
+### 1. Project Setup
 
-```typescript
-import { Client, GatewayIntentBits, Message, TextChannel, EmbedBuilder } from 'discord.js';
-import { Muzzle, MuzzleConfig, FilterResult } from '@ovendjs/muzzle';
+First, let's set up a new project:
 
-// Initialize Discord client with necessary intents
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMessageReactions
-  ]
-});
+```bash
+# Create a new project directory
+mkdir discord-muzzle-bot
+cd discord-muzzle-bot
 
-// Configure Muzzle for Discord moderation
-const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'url',
-      url: 'https://raw.githubusercontent.com/coffee-and-fun/google-profanity-words/main/data/en.txt',
-      refreshInterval: 86400000, // Refresh every 24 hours
-      cache: true
-    },
-    caseSensitive: false,
-    wholeWord: true,
-    parameterHandling: {
-      includeParametersInResults: true,
-      severityMapping: {
-        defaultSeverity: 1,
-        byType: {
-          'profanity': 3,
-          'slur': 8,
-          'hate': 9
+# Initialize npm project
+npm init -y
+
+# Install dependencies
+npm install discord.js @ovendjs/muzzle dotenv sqlite3
+
+# Install TypeScript dependencies (optional)
+npm install -D typescript @types/node @types/discord.js ts-node
+
+# Create a .env file for configuration
+touch .env
+```
+
+### 2. Configure Environment Variables
+
+Edit the `.env` file with your Discord bot token and other settings:
+
+```env
+DISCORD_TOKEN=your_discord_bot_token_here
+CLIENT_ID=your_bot_client_id_here
+GUILD_ID=your_server_id_here
+MODERATOR_ROLE_ID=your_moderator_role_id_here
+LOG_CHANNEL_ID=channel_id_for_moderation_logs
+DATABASE_PATH=./data/moderation.db
+```
+
+### 3. Create the Bot Structure
+
+Create the following directory structure:
+
+```
+discord-muzzle-bot/
+├── src/
+│   ├── commands/
+│   │   ├── config.js
+│   │   └── help.js
+│   ├── events/
+│   │   ├── guildCreate.js
+│   │   ├── interactionCreate.js
+│   │   ├── messageCreate.js
+│   │   └── ready.js
+│   ├── database/
+│   │   └── database.js
+│   ├── utils/
+│   │   └── logger.js
+│   ├── index.js
+│   └── muzzle.js
+├── .env
+├── package.json
+└── tsconfig.json (if using TypeScript)
+```
+
+### 4. Set Up the Database
+
+Create `src/database/database.js`:
+
+```javascript
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+const fs = require('fs');
+
+class Database {
+    constructor(dbPath) {
+        this.dbPath = dbPath;
+        this.db = null;
+        
+        // Ensure the directory exists
+        const dir = path.dirname(dbPath);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
         }
-      }
     }
-  }
-};
 
-const muzzle = new Muzzle({ config });
+    async connect() {
+        return new Promise((resolve, reject) => {
+            this.db = new sqlite3.Database(this.dbPath, (err) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    console.log('Connected to SQLite database');
+                    this.initializeTables().then(resolve).catch(reject);
+                }
+            });
+        });
+    }
 
-// Store warnings for users
-const userWarnings = new Map<string, number>();
+    async initializeTables() {
+        const queries = [
+            // Guild settings table
+            `CREATE TABLE IF NOT EXISTS guild_settings (
+                guild_id TEXT PRIMARY KEY,
+                log_channel_id TEXT,
+                moderator_role_id TEXT,
+                warning_threshold INTEGER DEFAULT 3,
+                mute_duration INTEGER DEFAULT 300000,
+                filter_enabled INTEGER DEFAULT 1,
+                custom_banned_words TEXT,
+                created_at INTEGER DEFAULT (strftime('%s', 'now')),
+                updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+            )`,
+            
+            // User violations table
+            `CREATE TABLE IF NOT EXISTS user_violations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id TEXT,
+                user_id TEXT,
+                username TEXT,
+                violation_type TEXT,
+                message_id TEXT,
+                channel_id TEXT,
+                content TEXT,
+                severity INTEGER,
+                action_taken TEXT,
+                created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            )`,
+            
+            // Warning levels table
+            `CREATE TABLE IF NOT EXISTS user_warnings (
+                guild_id TEXT,
+                user_id TEXT,
+                warning_count INTEGER DEFAULT 0,
+                last_warning_at INTEGER DEFAULT 0,
+                PRIMARY KEY (guild_id, user_id)
+            )`
+        ];
 
-// Moderation log channel (will be set when bot joins a server)
-let moderationLogChannel: TextChannel | null = null;
+        for (const query of queries) {
+            await this.run(query);
+        }
+    }
 
-// Initialize Muzzle on startup
-async function initializeBot() {
-  try {
-    await muzzle.initialize();
-    console.log('✅ Muzzle initialized successfully');
-    
-    // Login to Discord
-    await client.login(process.env.DISCORD_BOT_TOKEN);
-    console.log('🚀 Discord bot logged in');
-  } catch (error) {
-    console.error('❌ Failed to initialize bot:', error);
-    process.exit(1);
-  }
+    run(query, params = []) {
+        return new Promise((resolve, reject) => {
+            this.db.run(query, params, function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve({ id: this.lastID, changes: this.changes });
+                }
+            });
+        });
+    }
+
+    get(query, params = []) {
+        return new Promise((resolve, reject) => {
+            this.db.get(query, params, (err, row) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(row);
+                }
+            });
+        });
+    }
+
+    all(query, params = []) {
+        return new Promise((resolve, reject) => {
+            this.db.all(query, params, (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(rows);
+                }
+            });
+        });
+    }
+
+    close() {
+        return new Promise((resolve, reject) => {
+            this.db.close((err) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    console.log('Database connection closed');
+                    resolve();
+                }
+            });
+        });
+    }
 }
 
-// Event: Bot is ready
-client.once('ready', async () => {
-  console.log(`✅ Logged in as ${client.user?.tag}!`);
-  
-  // Find or create moderation log channel
-  const guild = client.guilds.cache.first();
-  if (guild) {
-    try {
-      // Try to find existing log channel
-      moderationLogChannel = guild.channels.cache.find(
-        channel => channel.name === 'moderation-log' && channel.isTextBased()
-      ) as TextChannel;
-      
-      if (!moderationLogChannel) {
-        // Create log channel if it doesn't exist
-        moderationLogChannel = await guild.channels.create({
-          name: 'moderation-log',
-          type: 0, // Text channel
-          topic: 'Automated moderation logs',
-          permissionOverwrites: [
-            {
-              id: guild.roles.everyone.id,
-              deny: ['ViewChannel']
-            },
-            {
-              id: guild.members.me?.id || '',
-              allow: ['ViewChannel', 'SendMessages']
+module.exports = Database;
+```
+
+### 5. Configure Muzzle
+
+Create `src/muzzle.js`:
+
+```javascript
+const { Muzzle } = require('@ovendjs/muzzle');
+
+class MuzzleFilter {
+    constructor() {
+        this.muzzle = null;
+        this.initialized = false;
+    }
+
+    async initialize() {
+        if (this.initialized) return;
+
+        try {
+            this.muzzle = new Muzzle({
+                config: {
+                    textFiltering: {
+                        bannedWordsSource: {
+                            type: 'string',
+                            string: 'badword,profanity,swear,curse,hate,violence,stupid,idiot,dumb,kill,death,racist,sexist,homophobic,slur'
+                        },
+                        caseSensitive: false,
+                        wholeWord: true,
+                        preprocessText: true,
+                        parameterHandling: {
+                            includeParametersInResults: true,
+                            severityMapping: {
+                                defaultSeverity: 1,
+                                byType: {
+                                    'profanity': 3,
+                                    'hate': 8,
+                                    'violence': 7,
+                                    'insult': 5,
+                                    'slur': 10
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            await this.muzzle.initialize();
+            this.initialized = true;
+            console.log('Muzzle filter initialized successfully');
+        } catch (error) {
+            console.error('Failed to initialize Muzzle filter:', error);
+            throw error;
+        }
+    }
+
+    async filterText(text, customWords = '') {
+        if (!this.initialized) {
+            await this.initialize();
+        }
+
+        try {
+            // Add custom words to the filter if provided
+            if (customWords) {
+                const words = customWords.split(',').map(w => w.trim()).filter(w => w);
+                // In a real implementation, you would update the config
+                // For this example, we'll just use the base filter
             }
-          ]
-        });
-        console.log('📝 Created moderation log channel');
-      }
-      
-      // Send startup message
-      const embed = new EmbedBuilder()
-        .setColor(0x00ff00)
-        .setTitle('Bot Started')
-        .setDescription('Content moderation bot is now active')
-        .setTimestamp();
-      
-      await moderationLogChannel.send({ embeds: [embed] });
-    } catch (error) {
-      console.error('❌ Failed to set up moderation log channel:', error);
-    }
-  }
-});
 
-// Event: Message received
-client.on('messageCreate', async (message: Message) => {
-  // Ignore bot messages
-  if (message.author.bot) return;
-  
-  // Ignore DMs
-  if (!message.guild) return;
-  
-  // Check if user has moderation bypass permission
-  const member = message.guild.members.cache.get(message.author.id);
-  if (member && member.permissions.has('ManageMessages')) return;
-  
-  try {
-    // Filter the message content
-    const result = await muzzle.filterText(message.content);
-    
-    if (result.matched) {
-      // Handle inappropriate content
-      await handleInappropriateContent(message, result);
+            const result = await this.muzzle.filterText(text);
+            return result;
+        } catch (error) {
+            console.error('Error filtering text:', error);
+            throw error;
+        }
     }
-  } catch (error) {
-    console.error('🚨 Error filtering message:', error);
-    
-    // Send error message to moderation log
-    if (moderationLogChannel) {
-      const errorEmbed = new EmbedBuilder()
-        .setColor(0xff0000)
-        .setTitle('Filtering Error')
-        .setDescription(`Error filtering message from ${message.author.tag}`)
-        .addFields(
-          { name: 'Message ID', value: message.id },
-          { name: 'Error', value: error instanceof Error ? error.message : 'Unknown error' }
-        )
-        .setTimestamp();
-      
-      await moderationLogChannel.send({ embeds: [errorEmbed] });
-    }
-  }
-});
 
-// Handle inappropriate content
-async function handleInappropriateContent(message: Message, result: FilterResult) {
-  try {
-    // Delete the inappropriate message
-    await message.delete();
-    
-    // Calculate severity
-    const severity = result.matches.reduce((max, match) => {
-      const matchSeverity = match.parameters?.severity || 1;
-      return Math.max(max, matchSeverity);
-    }, 1);
-    
-    // Increment user warnings
-    const userId = message.author.id;
-    const currentWarnings = userWarnings.get(userId) || 0;
-    userWarnings.set(userId, currentWarnings + 1);
-    
-    // Send warning to user
-    const warningEmbed = new EmbedBuilder()
-      .setColor(0xff9900)
-      .setTitle('⚠️ Content Warning')
-      .setDescription('Your message was removed for containing inappropriate content')
-      .addFields(
-        { name: 'Reason', value: `Detected: ${result.matches.map(m => m.word).join(', ')}` },
-        { name: 'Severity', value: getSeverityLevel(severity) },
-        { name: 'Warnings', value: `${currentWarnings + 1}/5` }
-      )
-      .setFooter({ text: 'Repeated violations may result in a ban' })
-      .setTimestamp();
-    
-    try {
-      await message.author.send({ embeds: [warningEmbed] });
-    } catch (error) {
-      // User might have DMs disabled
-      console.log(`⚠️ Could not send DM to ${message.author.tag} (DMs disabled)`);
+    isInitialized() {
+        return this.initialized;
     }
-    
-    // Log to moderation channel
-    if (moderationLogChannel) {
-      const logEmbed = new EmbedBuilder()
-        .setColor(0xff0000)
-        .setTitle('🚫 Message Removed')
-        .setDescription('Inappropriate content detected and removed')
-        .addFields(
-          { name: 'User', value: `${message.author.tag} (${message.author.id})` },
-          { name: 'Channel', value: `${message.channel}` },
-          { name: 'Content', value: message.content.substring(0, 1024) + (message.content.length > 1024 ? '...' : '') },
-          { name: 'Detected Words', value: result.matches.map(m => m.word).join(', ') },
-          { name: 'Severity', value: getSeverityLevel(severity) },
-          { name: 'User Warnings', value: `${currentWarnings + 1}/5` }
-        )
-        .setTimestamp();
-      
-      await moderationLogChannel.send({ embeds: [logEmbed] });
-    }
-    
-    // Take action based on warning count and severity
-    if (currentWarnings + 1 >= 5 || severity >= 9) {
-      // Ban user for severe violations or too many warnings
-      try {
-        await message.guild?.members.ban(message.author, {
-          reason: `Repeated violations of content policy (${currentWarnings + 1} warnings, severity ${severity})`
-        });
-        
-        if (moderationLogChannel) {
-          const banEmbed = new EmbedBuilder()
-            .setColor(0x8b0000)
-            .setTitle('🔨 User Banned')
-            .setDescription('User has been banned for repeated violations')
-            .addFields(
-              { name: 'User', value: `${message.author.tag} (${message.author.id})` },
-              { name: 'Reason', value: `Repeated violations (${currentWarnings + 1} warnings, severity ${severity})` }
-            )
-            .setTimestamp();
-          
-          await moderationLogChannel.send({ embeds: [banEmbed] });
-        }
-        
-        // Reset warnings
-        userWarnings.delete(userId);
-      } catch (error) {
-        console.error('🚨 Error banning user:', error);
-      }
-    } else if (currentWarnings + 1 >= 3) {
-      // Timeout user for moderate violations
-      try {
-        await message.member?.timeout(24 * 60 * 60 * 1000, 'Multiple content violations'); // 24 hours
-      
-        if (moderationLogChannel) {
-          const timeoutEmbed = new EmbedBuilder()
-            .setColor(0xff6600)
-            .setTitle('⏱️ User Timed Out')
-            .setDescription('User has been timed out for multiple violations')
-            .addFields(
-              { name: 'User', value: `${message.author.tag} (${message.author.id})` },
-              { name: 'Duration', value: '24 hours' },
-              { name: 'Reason', value: `Multiple violations (${currentWarnings + 1} warnings)` }
-            )
-            .setTimestamp();
-          
-          await moderationLogChannel.send({ embeds: [timeoutEmbed] });
-        }
-      } catch (error) {
-        console.error('🚨 Error timing out user:', error);
-      }
-    }
-  } catch (error) {
-    console.error('🚨 Error handling inappropriate content:', error);
-  }
 }
 
-// Get severity level description
-function getSeverityLevel(severity: number): string {
-  if (severity <= 2) return 'Low';
-  if (severity <= 5) return 'Medium';
-  if (severity <= 7) return 'High';
-  return 'Critical';
-}
-
-// Command: !warnings (view user warnings)
-client.on('messageCreate', async (message: Message) => {
-  if (message.content.startsWith('!warnings')) {
-    // Check if user has permission to view warnings
-    const member = message.guild?.members.cache.get(message.author.id);
-    if (!member || !member.permissions.has('ManageMessages')) return;
-    
-    const mentionedUser = message.mentions.users.first();
-    if (!mentionedUser) {
-      message.reply('Please mention a user to check their warnings.');
-      return;
-    }
-    
-    const warnings = userWarnings.get(mentionedUser.id) || 0;
-    
-    const embed = new EmbedBuilder()
-      .setColor(0x0099ff)
-      .setTitle('User Warnings')
-      .setDescription(`Warning count for ${mentionedUser.tag}`)
-      .addFields(
-        { name: 'Warnings', value: `${warnings}/5` },
-        { name: 'User ID', value: mentionedUser.id }
-      )
-      .setTimestamp();
-    
-    message.reply({ embeds: [embed] });
-  }
-});
-
-// Command: !resetwarnings (reset user warnings)
-client.on('messageCreate', async (message: Message) => {
-  if (message.content.startsWith('!resetwarnings')) {
-    // Check if user has permission to reset warnings
-    const member = message.guild?.members.cache.get(message.author.id);
-    if (!member || !member.permissions.has('ManageMessages')) return;
-    
-    const mentionedUser = message.mentions.users.first();
-    if (!mentionedUser) {
-      message.reply('Please mention a user to reset their warnings.');
-      return;
-    }
-    
-    userWarnings.delete(mentionedUser.id);
-    
-    const embed = new EmbedBuilder()
-      .setColor(0x00ff00)
-      .setTitle('Warnings Reset')
-      .setDescription(`Warnings have been reset for ${mentionedUser.tag}`)
-      .setTimestamp();
-    
-    message.reply({ embeds: [embed] });
-    
-    // Log to moderation channel
-    if (moderationLogChannel) {
-      const logEmbed = new EmbedBuilder()
-        .setColor(0x00ff00)
-        .setTitle('Warnings Reset')
-        .setDescription(`Warnings have been reset by ${message.author.tag}`)
-        .addFields(
-          { name: 'User', value: `${mentionedUser.tag} (${mentionedUser.id})` },
-          { name: 'Reset By', value: `${message.author.tag} (${message.author.id})` }
-        )
-        .setTimestamp();
-      
-      await moderationLogChannel.send({ embeds: [logEmbed] });
-    }
-  }
-});
-
-// Command: !muzzlestatus (check bot status)
-client.on('messageCreate', async (message: Message) => {
-  if (message.content === '!muzzlestatus') {
-    // Check if user has permission to view status
-    const member = message.guild?.members.cache.get(message.author.id);
-    if (!member || !member.permissions.has('ManageMessages')) return;
-    
-    try {
-      const status = await muzzle.getStatus();
-      
-      const embed = new EmbedBuilder()
-        .setColor(0x0099ff)
-        .setTitle('Muzzle Status')
-        .addFields(
-          { name: 'Status', value: status.initialized ? '✅ Initialized' : '❌ Not Initialized' },
-          { name: 'Word List Size', value: status.wordListSize?.toString() || 'Unknown' },
-          { name: 'Last Updated', value: status.lastUpdated ? new Date(status.lastUpdated).toLocaleString() : 'Never' },
-          { name: 'Memory Usage', value: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)} MB` },
-          { name: 'Uptime', value: `${Math.floor(process.uptime() / 3600)}h ${Math.floor((process.uptime() % 3600) / 60)}m` }
-        )
-        .setTimestamp();
-      
-      message.reply({ embeds: [embed] });
-    } catch (error) {
-      console.error('🚨 Error getting status:', error);
-      message.reply('❌ Error getting status');
-    }
-  }
-});
-
-// Initialize the bot
-initializeBot();
+module.exports = new MuzzleFilter();
 ```
 
-## 🔍 Explanation
+### 6. Create Logger Utility
 
-### 1. Configuration Setup
+Create `src/utils/logger.js`:
 
-We start by configuring Muzzle with a URL-based word list and parameter handling:
+```javascript
+const fs = require('fs');
+const path = require('path');
 
-```typescript
-const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'url',
-      url: 'https://raw.githubusercontent.com/coffee-and-fun/google-profanity-words/main/data/en.txt',
-      refreshInterval: 86400000, // Refresh every 24 hours
-      cache: true
-    },
-    caseSensitive: false,
-    wholeWord: true,
-    parameterHandling: {
-      includeParametersInResults: true,
-      severityMapping: {
-        defaultSeverity: 1,
-        byType: {
-          'profanity': 3,
-          'slur': 8,
-          'hate': 9
-        }
-      }
+class Logger {
+    constructor() {
+        this.logDir = path.join(__dirname, '../../logs');
+        this.ensureLogDirectory();
     }
-  }
+
+    ensureLogDirectory() {
+        if (!fs.existsSync(this.logDir)) {
+            fs.mkdirSync(this.logDir, { recursive: true });
+        }
+    }
+
+    log(level, message, data = null) {
+        const timestamp = new Date().toISOString();
+        const logEntry = {
+            timestamp,
+            level,
+            message,
+            data
+        };
+
+        // Log to console
+        console.log(`[${timestamp}] [${level.toUpperCase()}] ${message}`, data || '');
+
+        // Log to file
+        const logFile = path.join(this.logDir, `${new Date().toISOString().split('T')[0]}.log`);
+        fs.appendFileSync(logFile, JSON.stringify(logEntry) + '\n');
+    }
+
+    info(message, data = null) {
+        this.log('info', message, data);
+    }
+
+    warn(message, data = null) {
+        this.log('warn', message, data);
+    }
+
+    error(message, data = null) {
+        this.log('error', message, data);
+    }
+
+    debug(message, data = null) {
+        this.log('debug', message, data);
+    }
+}
+
+module.exports = new Logger();
+```
+
+### 7. Create Event Handlers
+
+#### Ready Event
+
+Create `src/events/ready.js`:
+
+```javascript
+const logger = require('../utils/logger');
+
+module.exports = {
+    name: 'ready',
+    once: true,
+    async execute(client) {
+        logger.info(`Ready! Logged in as ${client.user.tag}`);
+        logger.info(`Bot is in ${client.guilds.cache.size} guilds`);
+        
+        // Set bot activity
+        client.user.setActivity('for inappropriate content', { type: 'WATCHING' });
+    }
 };
 ```
 
-This configuration:
-- Uses a remote word list from GitHub
-- Enables caching for better performance
-- Sets case-insensitive matching
-- Enables whole-word matching
-- Configures severity mapping for different types of inappropriate content
+#### Message Create Event
 
-### 2. Discord Bot Initialization
+Create `src/events/messageCreate.js`:
 
-The bot is initialized with necessary intents to read messages and manage the server:
+```javascript
+const muzzle = require('../muzzle');
+const Database = require('../database/database');
+const logger = require('../utils/logger');
 
-```typescript
+module.exports = {
+    name: 'messageCreate',
+    async execute(message, client) {
+        // Ignore bot messages
+        if (message.author.bot) return;
+        
+        // Ignore DMs
+        if (!message.guild) return;
+        
+        try {
+            // Get guild settings from database
+            const db = new Database(process.env.DATABASE_PATH);
+            await db.connect();
+            
+            const settings = await db.get(
+                'SELECT * FROM guild_settings WHERE guild_id = ?',
+                [message.guild.id]
+            );
+            
+            // If filtering is disabled or no settings exist, ignore
+            if (!settings || !settings.filter_enabled) {
+                await db.close();
+                return;
+            }
+            
+            // Check if user is a moderator
+            const member = await message.guild.members.fetch(message.author.id);
+            if (member.roles.cache.has(settings.moderator_role_id)) {
+                await db.close();
+                return;
+            }
+            
+            // Filter the message content
+            const result = await muzzle.filterText(message.content, settings.custom_banned_words || '');
+            
+            if (result.matched) {
+                logger.info(`Inappropriate content detected from ${message.author.tag} in ${message.guild.name}`, {
+                    userId: message.author.id,
+                    guildId: message.guild.id,
+                    content: message.content,
+                    matches: result.matches
+                });
+                
+                // Get the highest severity match
+                const maxSeverity = Math.max(...result.matches.map(m => m.parameters?.severity || 1));
+                
+                // Log the violation
+                await db.run(
+                    `INSERT INTO user_violations 
+                    (guild_id, user_id, username, violation_type, message_id, channel_id, content, severity, action_taken) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        message.guild.id,
+                        message.author.id,
+                        message.author.tag,
+                        'inappropriate_content',
+                        message.id,
+                        message.channel.id,
+                        message.content,
+                        maxSeverity,
+                        'message_deleted'
+                    ]
+                );
+                
+                // Delete the message
+                await message.delete();
+                
+                // Get user's warning count
+                let warningData = await db.get(
+                    'SELECT * FROM user_warnings WHERE guild_id = ? AND user_id = ?',
+                    [message.guild.id, message.author.id]
+                );
+                
+                if (!warningData) {
+                    await db.run(
+                        'INSERT INTO user_warnings (guild_id, user_id, warning_count, last_warning_at) VALUES (?, ?, 1, ?)',
+                        [message.guild.id, message.author.id, Date.now()]
+                    );
+                    warningData = { warning_count: 1 };
+                } else {
+                    await db.run(
+                        'UPDATE user_warnings SET warning_count = warning_count + 1, last_warning_at = ? WHERE guild_id = ? AND user_id = ?',
+                        [Date.now(), message.guild.id, message.author.id]
+                    );
+                    warningData.warning_count += 1;
+                }
+                
+                // Send warning to user
+                const warningMessage = `Your message in ${message.guild.name} was deleted for containing inappropriate content. This is warning #${warningData.warning_count}.`;
+                
+                try {
+                    await message.author.send(warningMessage);
+                } catch (err) {
+                    logger.warn(`Could not send DM to user ${message.author.tag}`, err);
+                }
+                
+                // Log to moderation channel if configured
+                if (settings.log_channel_id) {
+                    const logChannel = message.guild.channels.cache.get(settings.log_channel_id);
+                    if (logChannel && logChannel.isTextBased()) {
+                        const embed = {
+                            color: 0xFF0000,
+                            title: 'Message Deleted - Inappropriate Content',
+                            author: {
+                                name: message.author.tag,
+                                icon_url: message.author.displayAvatarURL()
+                            },
+                            description: `A message from ${message.author} in ${message.channel} was deleted for containing inappropriate content.`,
+                            fields: [
+                                {
+                                    name: 'Original Message',
+                                    value: message.content.substring(0, 1024)
+                                },
+                                {
+                                    name: 'Detected Words',
+                                    value: result.matches.map(m => m.word).join(', ')
+                                },
+                                {
+                                    name: 'Severity',
+                                    value: maxSeverity.toString()
+                                },
+                                {
+                                    name: 'Warning Count',
+                                    value: warningData.warning_count.toString()
+                                }
+                            ],
+                            timestamp: new Date(),
+                            footer: {
+                                text: `User ID: ${message.author.id}`
+                            }
+                        };
+                        
+                        await logChannel.send({ embeds: [embed] });
+                    }
+                }
+                
+                // Apply punishment if threshold is reached
+                if (warningData.warning_count >= settings.warning_threshold) {
+                    try {
+                        // Reset warning count
+                        await db.run(
+                            'UPDATE user_warnings SET warning_count = 0 WHERE guild_id = ? AND user_id = ?',
+                            [message.guild.id, message.author.id]
+                        );
+                        
+                        // Mute the user
+                        const muteRole = message.guild.roles.cache.find(role => role.name === 'Muted');
+                        if (muteRole) {
+                            await member.roles.add(muteRole);
+                            
+                            // Schedule unmute
+                            setTimeout(async () => {
+                                try {
+                                    const memberToUnmute = await message.guild.members.fetch(message.author.id).catch(() => null);
+                                    if (memberToUnmute && memberToUnmute.roles.cache.has(muteRole.id)) {
+                                        await memberToUnmute.roles.remove(muteRole);
+                                        
+                                        // Log unmute
+                                        if (settings.log_channel_id) {
+                                            const logChannel = message.guild.channels.cache.get(settings.log_channel_id);
+                                            if (logChannel && logChannel.isTextBased()) {
+                                                const embed = {
+                                                    color: 0x00FF00,
+                                                    title: 'User Unmuted',
+                                                    description: `${message.author.tag} has been unmuted.`,
+                                                    timestamp: new Date()
+                                                };
+                                                
+                                                await logChannel.send({ embeds: [embed] });
+                                            }
+                                        }
+                                    }
+                                } catch (err) {
+                                    logger.error(`Failed to unmute user ${message.author.tag}`, err);
+                                }
+                            }, settings.mute_duration || 300000); // Default 5 minutes
+                            
+                            // Log mute
+                            if (settings.log_channel_id) {
+                                const logChannel = message.guild.channels.cache.get(settings.log_channel_id);
+                                if (logChannel && logChannel.isTextBased()) {
+                                    const embed = {
+                                        color: 0xFFA500,
+                                        title: 'User Muted',
+                                        description: `${message.author.tag} has been muted for reaching the warning threshold.`,
+                                        fields: [
+                                            {
+                                                name: 'Duration',
+                                                value: `${(settings.mute_duration || 300000) / 60000} minutes`
+                                            },
+                                            {
+                                                name: 'Reason',
+                                                value: 'Reached warning threshold for inappropriate content'
+                                            }
+                                        ],
+                                        timestamp: new Date()
+                                    };
+                                    
+                                    await logChannel.send({ embeds: [embed] });
+                                }
+                            }
+                        }
+                    } catch (err) {
+                        logger.error(`Failed to mute user ${message.author.tag}`, err);
+                    }
+                }
+            }
+            
+            await db.close();
+        } catch (error) {
+            logger.error('Error in messageCreate event:', error);
+        }
+    }
+};
+```
+
+#### Interaction Create Event
+
+Create `src/events/interactionCreate.js`:
+
+```javascript
+const logger = require('../utils/logger');
+
+module.exports = {
+    name: 'interactionCreate',
+    async execute(interaction, client) {
+        if (!interaction.isCommand()) return;
+
+        const command = client.commands.get(interaction.commandName);
+
+        if (!command) {
+            logger.warn(`No command matching ${interaction.commandName} was found.`);
+            return;
+        }
+
+        try {
+            await command.execute(interaction);
+        } catch (error) {
+            logger.error(`Error executing ${interaction.commandName} command:`, error);
+            
+            await interaction.reply({
+                content: 'There was an error while executing this command!',
+                ephemeral: true
+            });
+        }
+    }
+};
+```
+
+#### Guild Create Event
+
+Create `src/events/guildCreate.js`:
+
+```javascript
+const Database = require('../database/database');
+const logger = require('../utils/logger');
+
+module.exports = {
+    name: 'guildCreate',
+    async execute(guild) {
+        logger.info(`Joined new guild: ${guild.name} (${guild.id})`);
+        
+        try {
+            const db = new Database(process.env.DATABASE_PATH);
+            await db.connect();
+            
+            // Check if settings already exist for this guild
+            const settings = await db.get(
+                'SELECT * FROM guild_settings WHERE guild_id = ?',
+                [guild.id]
+            );
+            
+            if (!settings) {
+                // Create default settings for the guild
+                await db.run(
+                    `INSERT INTO guild_settings 
+                    (guild_id, log_channel_id, moderator_role_id, warning_threshold, mute_duration, filter_enabled) 
+                    VALUES (?, ?, ?, ?, ?, ?)`,
+                    [guild.id, null, null, 3, 300000, 1]
+                );
+                
+                logger.info(`Created default settings for guild ${guild.name}`);
+            }
+            
+            await db.close();
+            
+            // Try to send a welcome message to the system channel
+            if (guild.systemChannel) {
+                try {
+                    const embed = {
+                        color: 0x00AE86,
+                        title: 'Thanks for adding Muzzle Moderation Bot!',
+                        description: 'This bot helps moderate your server by filtering inappropriate content.',
+                        fields: [
+                            {
+                                name: 'Getting Started',
+                                value: 'Use `/config` to set up the bot for your server. You\'ll need to specify a moderator role and optionally a log channel.'
+                            },
+                            {
+                                name: 'Commands',
+                                value: '`/config` - Configure bot settings\n`/help` - Show help information'
+                            },
+                            {
+                                name: 'Need Help?',
+                                value: 'Join our support server for assistance: [Support Server](https://discord.gg/your-support-server)'
+                            }
+                        ],
+                        timestamp: new Date(),
+                        footer: {
+                            text: 'Muzzle Moderation Bot'
+                        }
+                    };
+                    
+                    await guild.systemChannel.send({ embeds: [embed] });
+                } catch (err) {
+                    logger.warn(`Could not send welcome message to ${guild.name}`, err);
+                }
+            }
+        } catch (error) {
+            logger.error(`Error in guildCreate event for ${guild.name}:`, error);
+        }
+    }
+};
+```
+
+### 8. Create Slash Commands
+
+#### Config Command
+
+Create `src/commands/config.js`:
+
+```javascript
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const Database = require('../database/database');
+const logger = require('../utils/logger');
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('config')
+        .setDescription('Configure bot settings')
+        .addChannelOption(option =>
+            option.setName('log_channel')
+                .setDescription('The channel where moderation logs will be sent')
+                .setRequired(false))
+        .addRoleOption(option =>
+            option.setName('moderator_role')
+                .setDescription('The role that can bypass moderation')
+                .setRequired(false))
+        .addIntegerOption(option =>
+            option.setName('warning_threshold')
+                .setDescription('Number of warnings before a user is muted')
+                .setRequired(false)
+                .setMinValue(1)
+                .setMaxValue(10))
+        .addIntegerOption(option =>
+            option.setName('mute_duration')
+                .setDescription('Duration of mute in minutes')
+                .setRequired(false)
+                .setMinValue(1)
+                .setMaxValue(1440))
+        .addStringOption(option =>
+            option.setName('custom_banned_words')
+                .setDescription('Comma-separated list of additional banned words')
+                .setRequired(false))
+        .addBooleanOption(option =>
+            option.setName('filter_enabled')
+                .setDescription('Whether the content filter is enabled')
+                .setRequired(false))
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    
+    async execute(interaction) {
+        await interaction.deferReply({ ephemeral: true });
+        
+        try {
+            const db = new Database(process.env.DATABASE_PATH);
+            await db.connect();
+            
+            // Get current settings
+            let settings = await db.get(
+                'SELECT * FROM guild_settings WHERE guild_id = ?',
+                [interaction.guild.id]
+            );
+            
+            if (!settings) {
+                // Create default settings
+                await db.run(
+                    `INSERT INTO guild_settings 
+                    (guild_id, log_channel_id, moderator_role_id, warning_threshold, mute_duration, filter_enabled) 
+                    VALUES (?, ?, ?, ?, ?, ?)`,
+                    [interaction.guild.id, null, null, 3, 300000, 1]
+                );
+                
+                settings = await db.get(
+                    'SELECT * FROM guild_settings WHERE guild_id = ?',
+                    [interaction.guild.id]
+                );
+            }
+            
+            // Update settings based on provided options
+            const updates = [];
+            const params = [];
+            
+            if (interaction.options.getChannel('log_channel')) {
+                updates.push('log_channel_id = ?');
+                params.push(interaction.options.getChannel('log_channel').id);
+            }
+            
+            if (interaction.options.getRole('moderator_role')) {
+                updates.push('moderator_role_id = ?');
+                params.push(interaction.options.getRole('moderator_role').id);
+            }
+            
+            if (interaction.options.getInteger('warning_threshold') !== null) {
+                updates.push('warning_threshold = ?');
+                params.push(interaction.options.getInteger('warning_threshold'));
+            }
+            
+            if (interaction.options.getInteger('mute_duration') !== null) {
+                updates.push('mute_duration = ?');
+                params.push(interaction.options.getInteger('mute_duration') * 60000); // Convert to milliseconds
+            }
+            
+            if (interaction.options.getString('custom_banned_words') !== null) {
+                updates.push('custom_banned_words = ?');
+                params.push(interaction.options.getString('custom_banned_words'));
+            }
+            
+            if (interaction.options.getBoolean('filter_enabled') !== null) {
+                updates.push('filter_enabled = ?');
+                params.push(interaction.options.getBoolean('filter_enabled') ? 1 : 0);
+            }
+            
+            if (updates.length > 0) {
+                updates.push('updated_at = ?');
+                params.push(Date.now());
+                params.push(interaction.guild.id);
+                
+                await db.run(
+                    `UPDATE guild_settings SET ${updates.join(', ')} WHERE guild_id = ?`,
+                    params
+                );
+                
+                // Get updated settings
+                settings = await db.get(
+                    'SELECT * FROM guild_settings WHERE guild_id = ?',
+                    [interaction.guild.id]
+                );
+            }
+            
+            await db.close();
+            
+            // Create response embed
+            const embed = {
+                color: 0x00AE86,
+                title: 'Bot Configuration',
+                description: 'Current bot settings:',
+                fields: [
+                    {
+                        name: 'Log Channel',
+                        value: settings.log_channel_id 
+                            ? `<#${settings.log_channel_id}>` 
+                            : 'Not set',
+                        inline: true
+                    },
+                    {
+                        name: 'Moderator Role',
+                        value: settings.moderator_role_id 
+                            ? `<@&${settings.moderator_role_id}>` 
+                            : 'Not set',
+                        inline: true
+                    },
+                    {
+                        name: 'Warning Threshold',
+                        value: settings.warning_threshold.toString(),
+                        inline: true
+                    },
+                    {
+                        name: 'Mute Duration',
+                        value: `${settings.mute_duration / 60000} minutes`,
+                        inline: true
+                    },
+                    {
+                        name: 'Filter Enabled',
+                        value: settings.filter_enabled ? 'Yes' : 'No',
+                        inline: true
+                    },
+                    {
+                        name: 'Custom Banned Words',
+                        value: settings.custom_banned_words || 'None',
+                        inline: false
+                    }
+                ],
+                timestamp: new Date(),
+                footer: {
+                    text: 'Muzzle Moderation Bot'
+                }
+            };
+            
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            logger.error('Error in config command:', error);
+            
+            await interaction.editReply({
+                content: 'There was an error while updating the configuration.',
+                ephemeral: true
+            });
+        }
+    }
+};
+```
+
+#### Help Command
+
+Create `src/commands/help.js`:
+
+```javascript
+const { SlashCommandBuilder } = require('discord.js');
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('help')
+        .setDescription('Show help information'),
+    
+    async execute(interaction) {
+        const embed = {
+            color: 0x00AE86,
+            title: 'Muzzle Moderation Bot - Help',
+            description: 'This bot automatically moderates your server by filtering inappropriate content.',
+            fields: [
+                {
+                    name: 'Commands',
+                    value: '`/config` - Configure bot settings (Admin only)\n`/help` - Show this help message'
+                },
+                {
+                    name: 'How It Works',
+                    value: 'The bot scans all messages in your server for inappropriate content. When such content is detected, the message is automatically deleted and the user receives a warning. After a certain number of warnings, the user is automatically muted.'
+                },
+                {
+                    name: 'Setting Up',
+                    value: '1. Use `/config` to set up the bot\n2. Specify a moderator role that can bypass moderation\n3. Optionally set a log channel to see moderation actions\n4. Configure warning threshold and mute duration as needed'
+                },
+                {
+                    name: 'Need Help?',
+                    value: 'Join our support server for assistance: [Support Server](https://discord.gg/your-support-server)'
+                }
+            ],
+            timestamp: new Date(),
+            footer: {
+                text: 'Muzzle Moderation Bot'
+            }
+        };
+        
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+};
+```
+
+### 9. Create the Main Bot File
+
+Create `src/index.js`:
+
+```javascript
+require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const { Client, Collection, GatewayIntentBits, Events } = require('discord.js');
+const logger = require('./utils/logger');
+const muzzle = require('./muzzle');
+
+// Create a new client instance
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMessageReactions
-  ]
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.MessageContent
+    ]
 });
-```
 
-### 3. Message Filtering
+// Initialize commands collection
+client.commands = new Collection();
 
-When a message is received, it's filtered through Muzzle:
+// Load commands
+const commandsPath = path.join(__dirname, 'commands');
+const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
-```typescript
-client.on('messageCreate', async (message: Message) => {
-  // Ignore bot messages and DMs
-  if (message.author.bot) return;
-  if (!message.guild) return;
-  
-  // Check if user has moderation bypass permission
-  const member = message.guild.members.cache.get(message.author.id);
-  if (member && member.permissions.has('ManageMessages')) return;
-  
-  // Filter the message content
-  const result = await muzzle.filterText(message.content);
-  
-  if (result.matched) {
-    // Handle inappropriate content
-    await handleInappropriateContent(message, result);
-  }
-});
-```
-
-### 4. Content Moderation
-
-The `handleInappropriateContent` function manages violations based on severity and warning count:
-
-```typescript
-async function handleInappropriateContent(message: Message, result: FilterResult) {
-  // Delete the inappropriate message
-  await message.delete();
-  
-  // Calculate severity
-  const severity = result.matches.reduce((max, match) => {
-    const matchSeverity = match.parameters?.severity || 1;
-    return Math.max(max, matchSeverity);
-  }, 1);
-  
-  // Increment user warnings
-  const userId = message.author.id;
-  const currentWarnings = userWarnings.get(userId) || 0;
-  userWarnings.set(userId, currentWarnings + 1);
-  
-  // Send warning to user
-  const warningEmbed = new EmbedBuilder()
-    .setColor(0xff9900)
-    .setTitle('⚠️ Content Warning')
-    .setDescription('Your message was removed for containing inappropriate content')
-    .addFields(
-      { name: 'Reason', value: `Detected: ${result.matches.map(m => m.word).join(', ')}` },
-      { name: 'Severity', value: getSeverityLevel(severity) },
-      { name: 'Warnings', value: `${currentWarnings + 1}/5` }
-    )
-    .setFooter({ text: 'Repeated violations may result in a ban' })
-    .setTimestamp();
-  
-  try {
-    await message.author.send({ embeds: [warningEmbed] });
-  } catch (error) {
-    // User might have DMs disabled
-    console.log(`⚠️ Could not send DM to ${message.author.tag} (DMs disabled)`);
-  }
-  
-  // Take action based on warning count and severity
-  if (currentWarnings + 1 >= 5 || severity >= 9) {
-    // Ban user for severe violations or too many warnings
-    await message.guild?.members.ban(message.author, {
-      reason: `Repeated violations of content policy (${currentWarnings + 1} warnings, severity ${severity})`
-    });
-    userWarnings.delete(userId);
-  } else if (currentWarnings + 1 >= 3) {
-    // Timeout user for moderate violations
-    await message.member?.timeout(24 * 60 * 60 * 1000, 'Multiple content violations'); // 24 hours
-  }
-}
-```
-
-### 5. Moderation Commands
-
-The bot includes several commands for moderators:
-
-- `!warnings @user` - View a user's warning count
-- `!resetwarnings @user` - Reset a user's warnings
-- `!muzzlestatus` - Check the bot's status
-
-## 🔄 Variations
-
-### 1. Custom Word List
-
-To use a custom word list instead of the default one:
-
-```typescript
-const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'string',
-      string: 'badword,profanity,swear,curse,hate,violence,inappropriate'
+for (const file of commandFiles) {
+    const filePath = path.join(commandsPath, file);
+    const command = require(filePath);
+    
+    if ('data' in command && 'execute' in command) {
+        client.commands.set(command.data.name, command);
+        logger.info(`Loaded command: ${command.data.name}`);
+    } else {
+        logger.warn(`The command at ${filePath} is missing a required "data" or "execute" property.`);
     }
-  }
-};
-```
-
-### 2. Server-Specific Configuration
-
-To allow different servers to have their own word lists:
-
-```typescript
-const serverConfigs = new Map<string, MuzzleConfig>();
-
-// Load server-specific configurations
-client.on('guildCreate', async (guild) => {
-  // Load or create configuration for this server
-  const config = await loadServerConfig(guild.id);
-  serverConfigs.set(guild.id, config);
-});
-
-// Use server-specific configuration when filtering
-client.on('messageCreate', async (message) => {
-  if (!message.guild) return;
-  
-  const config = serverConfigs.get(message.guild.id);
-  if (!config) return;
-  
-  const muzzle = new Muzzle({ config });
-  const result = await muzzle.filterText(message.content);
-  
-  if (result.matched) {
-    await handleInappropriateContent(message, result);
-  }
-});
-```
-
-### 3. Database Integration
-
-To persist warnings across bot restarts:
-
-```typescript
-import { Database } from 'sqlite3';
-
-const db = new Database('./moderation.db');
-
-// Initialize database
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS warnings (
-      user_id TEXT PRIMARY KEY,
-      warning_count INTEGER DEFAULT 0,
-      last_warning DATETIME
-    )
-  `);
-});
-
-// Get user warnings from database
-async function getUserWarnings(userId: string): Promise<number> {
-  return new Promise((resolve, reject) => {
-    db.get(
-      'SELECT warning_count FROM warnings WHERE user_id = ?',
-      [userId],
-      (err, row: any) => {
-        if (err) reject(err);
-        else resolve(row?.warning_count || 0);
-      }
-    );
-  });
 }
 
-// Update user warnings in database
-async function updateUserWarnings(userId: string, count: number): Promise<void> {
-  return new Promise((resolve, reject) => {
-    db.run(
-      'INSERT OR REPLACE INTO warnings (user_id, warning_count, last_warning) VALUES (?, ?, ?)',
-      [userId, count, new Date().toISOString()],
-      (err) => {
-        if (err) reject(err);
-        else resolve();
-      }
-    );
-  });
+// Load events
+const eventsPath = path.join(__dirname, 'events');
+const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+
+for (const file of eventFiles) {
+    const filePath = path.join(eventsPath, file);
+    const event = require(filePath);
+    
+    if (event.once) {
+        client.once(event.name, (...args) => event.execute(...args, client));
+    } else {
+        client.on(event.name, (...args) => event.execute(...args, client));
+    }
+    
+    logger.info(`Loaded event: ${event.name}`);
 }
+
+// Login to Discord with your client's token
+client.login(process.env.DISCORD_TOKEN)
+    .then(() => {
+        logger.info('Bot logged in successfully');
+        
+        // Initialize Muzzle after login
+        muzzle.initialize()
+            .then(() => {
+                logger.info('Muzzle filter initialized');
+            })
+            .catch(err => {
+                logger.error('Failed to initialize Muzzle filter:', err);
+            });
+    })
+    .catch(err => {
+        logger.error('Failed to log in:', err);
+    });
+
+// Handle graceful shutdown
+process.on('SIGINT', async () => {
+    logger.info('Received SIGINT, shutting down gracefully...');
+    
+    try {
+        // Destroy the Discord client
+        await client.destroy();
+        logger.info('Discord client destroyed');
+        
+        process.exit(0);
+    } catch (err) {
+        logger.error('Error during shutdown:', err);
+        process.exit(1);
+    }
+});
+
+process.on('SIGTERM', async () => {
+    logger.info('Received SIGTERM, shutting down gracefully...');
+    
+    try {
+        // Destroy the Discord client
+        await client.destroy();
+        logger.info('Discord client destroyed');
+        
+        process.exit(0);
+    } catch (err) {
+        logger.error('Error during shutdown:', err);
+        process.exit(1);
+    }
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+    logger.error('Uncaught exception:', err);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled rejection at:', promise, 'reason:', reason);
+});
 ```
 
-## 🚀 Best Practices
+### 10. Add Start Script to package.json
 
-1. **Use Intents Wisely**: Only request the intents your bot actually needs to minimize resource usage.
+Update your `package.json` to include a start script:
 
-2. **Handle Errors Gracefully**: Always implement proper error handling to ensure your bot remains stable.
-
-3. **Respect Permissions**: Check user permissions before taking moderation actions.
-
-4. **Log Everything**: Maintain detailed logs of all moderation actions for transparency and accountability.
-
-5. **Provide Clear Feedback**: Give users clear explanations when their content is moderated.
-
-6. **Scale Gradually**: Start with basic filtering and add more sophisticated features as needed.
+```json
+{
+  "name": "discord-muzzle-bot",
+  "version": "1.0.0",
+  "description": "A Discord bot for content moderation using Muzzle",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "@ovendjs/muzzle": "^1.0.0",
+    "discord.js": "^14.0.0",
+    "dotenv": "^16.0.0",
+    "sqlite3": "^5.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.0"
+  }
+}
+```
 
 ## 🧪 Testing the Implementation
 
-1. Create a `.env` file with your Discord bot token:
+### 1. Invite the Bot to Your Server
+
+1. Go to the Discord Developer Portal
+2. Select your application
+3. Go to the "OAuth2" -> "URL Generator" page
+4. Select the `bot` and `applications.commands` scopes
+5. Select the necessary bot permissions:
+   - Read Messages/View Channels
+   - Send Messages
+   - Manage Messages
+   - Read Message History
+   - Manage Roles
+   - Embed Links
+6. Copy the generated URL and paste it into your browser to invite the bot to your server
+
+### 2. Set Up the Bot
+
+1. Create a moderator role in your server
+2. Create a channel for moderation logs (optional)
+3. Use the `/config` command to configure the bot:
    ```
-   DISCORD_BOT_TOKEN=your_bot_token_here
+   /config moderator_role:@Moderator log_channel:#moderation-logs
    ```
 
-2. Start the bot:
-   ```bash
-   ts-node your-bot-file.ts
-   ```
+### 3. Test Content Filtering
 
-3. Test with appropriate content:
-   - Send a clean message in your server
-   - Send a message with inappropriate content
-   - Check if the message is deleted and a warning is sent
+1. Send a message with inappropriate content in any channel
+2. Observe that the message is deleted
+3. Check if you received a DM warning
+4. Check the moderation log channel for the action
 
-4. Test moderator commands:
-   - `!warnings @user` - Check warning count
-   - `!resetwarnings @user` - Reset warnings
-   - `!muzzlestatus` - Check bot status
+### 4. Test Warning System
 
-5. Verify moderation logs:
-   - Check the moderation-log channel for automated logs
-   - Ensure all actions are properly documented
+1. Send multiple messages with inappropriate content to reach the warning threshold
+2. Observe that you get muted after reaching the threshold
+3. Check if you're automatically unmuted after the mute duration
 
-This implementation provides a robust, production-ready Discord bot for content moderation that can be easily integrated into any Discord server.
+## 💡 Explanation
+
+### How It Works
+
+1. **Initialization**: When the bot starts, it initializes Muzzle with a configuration that includes banned words and filtering options.
+
+2. **Message Scanning**: For every message sent in the server, the bot:
+   - Ignores messages from bots and DMs
+   - Checks if the sender is a moderator (bypasses filtering)
+   - Filters the message content using Muzzle
+   - Takes action based on the filtering results
+
+3. **Violation Handling**: When inappropriate content is detected:
+   - The message is deleted
+   - A warning is sent to the user via DM
+   - The violation is logged to the database
+   - If the warning threshold is reached, the user is muted
+
+4. **Configuration**: Moderators can configure bot settings using the `/config` slash command, including:
+   - Moderator role (bypasses filtering)
+   - Log channel (for moderation actions)
+   - Warning threshold (number of warnings before mute)
+   - Mute duration (how long users are muted)
+   - Custom banned words (additional words to filter)
+
+### Key Features Demonstrated
+
+1. **Real-time Content Filtering**: Messages are scanned and filtered as they are sent.
+
+2. **Progressive Discipline**: Users receive warnings and are eventually muted for repeated violations.
+
+3. **Configurable Settings**: Moderators can customize the bot's behavior to suit their server's needs.
+
+4. **Comprehensive Logging**: All moderation actions are logged to the database and optionally to a Discord channel.
+
+5. **Graceful Error Handling**: The bot handles errors gracefully and continues to function even if some operations fail.
+
+## 🔧 Variations
+
+### 1. Custom Severity Levels
+
+You could implement custom severity levels for different types of violations:
+
+```javascript
+// In muzzle.js
+const getSeverityForMatch = (match) => {
+    const word = match.word.toLowerCase();
+    
+    // Define custom severity levels
+    const severityMap = {
+        'mild': 1,
+        'moderate': 3,
+        'severe': 5,
+        'extreme': 10
+    };
+    
+    // Check if the word matches any custom severity
+    for (const [level, severity] of Object.entries(severityMap)) {
+        if (customWords[level] && customWords[level].includes(word)) {
+            return severity;
+        }
+    }
+    
+    // Default severity
+    return match.parameters?.severity || 1;
+};
+
+// In messageCreate.js
+const maxSeverity = Math.max(...result.matches.map(m => getSeverityForMatch(m)));
+```
+
+### 2. Temporary Bans
+
+For severe violations, you could implement temporary bans instead of mutes:
+
+```javascript
+// In messageCreate.js
+if (warningData.warning_count >= settings.warning_threshold) {
+    try {
+        // Reset warning count
+        await db.run(
+            'UPDATE user_warnings SET warning_count = 0 WHERE guild_id = ? AND user_id = ?',
+            [message.guild.id, message.author.id]
+        );
+        
+        // Ban the user temporarily
+        await message.guild.members.ban(message.author, {
+            reason: 'Reached warning threshold for inappropriate content',
+            deleteMessageDays: 1
+        });
+        
+        // Schedule unban
+        setTimeout(async () => {
+            try {
+                await message.guild.members.unban(message.author.id);
+                
+                // Log unban
+                if (settings.log_channel_id) {
+                    const logChannel = message.guild.channels.cache.get(settings.log_channel_id);
+                    if (logChannel && logChannel.isTextBased()) {
+                        const embed = {
+                            color: 0x00FF00,
+                            title: 'User Unbanned',
+                            description: `${message.author.tag} has been unbanned.`,
+                            timestamp: new Date()
+                        };
+                        
+                        await logChannel.send({ embeds: [embed] });
+                    }
+                }
+            } catch (err) {
+                logger.error(`Failed to unban user ${message.author.tag}`, err);
+            }
+        }, settings.ban_duration || 86400000); // Default 24 hours
+    } catch (err) {
+        logger.error(`Failed to ban user ${message.author.tag}`, err);
+    }
+}
+```
+
+### 3. Appeal System
+
+You could implement an appeal system where users can appeal warnings:
+
+```javascript
+// Create a new command: src/commands/appeal.js
+const { SlashCommandBuilder } = require('discord.js');
+const Database = require('../database/database');
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('appeal')
+        .setDescription('Appeal a warning')
+        .addStringOption(option =>
+            option.setName('reason')
+                .setDescription('Reason for the appeal')
+                .setRequired(true)),
+    
+    async execute(interaction) {
+        const reason = interaction.options.getString('reason');
+        
+        const db = new Database(process.env.DATABASE_PATH);
+        await db.connect();
+        
+        // Get user's warning count
+        const warningData = await db.get(
+            'SELECT * FROM user_warnings WHERE guild_id = ? AND user_id = ?',
+            [interaction.guild.id, interaction.user.id]
+        );
+        
+        if (!warningData || warningData.warning_count === 0) {
+            await db.close();
+            return interaction.reply({
+                content: 'You don\'t have any warnings to appeal.',
+                ephemeral: true
+            });
+        }
+        
+        // Log the appeal
+        await db.run(
+            `INSERT INTO appeals 
+            (guild_id, user_id, username, reason, status, created_at) 
+            VALUES (?, ?, ?, ?, ?, ?)`,
+            [interaction.guild.id, interaction.user.id, interaction.user.tag, reason, 'pending', Date.now()]
+        );
+        
+        await db.close();
+        
+        // Get guild settings
+        const settings = await db.get(
+            'SELECT * FROM guild_settings WHERE guild_id = ?',
+            [interaction.guild.id]
+        );
+        
+        // Notify moderators
+        if (settings.log_channel_id) {
+            const logChannel = interaction.guild.channels.cache.get(settings.log_channel_id);
+            if (logChannel && logChannel.isTextBased()) {
+                const embed = {
+                    color: 0xFFA500,
+                    title: 'New Appeal',
+                    description: `${interaction.user.tag} has appealed a warning.`,
+                    fields: [
+                        {
+                            name: 'User',
+                            value: `${interaction.user.tag} (${interaction.user.id})`
+                        },
+                        {
+                            name: 'Reason',
+                            value: reason
+                        },
+                        {
+                            name: 'Status',
+                            value: 'Pending'
+                        }
+                    ],
+                    timestamp: new Date()
+                };
+                
+                await logChannel.send({
+                    content: '@here New appeal submitted',
+                    embeds: [embed]
+                });
+            }
+        }
+        
+        await interaction.reply({
+            content: 'Your appeal has been submitted. Moderators will review it and get back to you.',
+            ephemeral: true
+        });
+    }
+};
+```
+
+### 4. Web Dashboard
+
+You could create a web dashboard for managing moderation actions:
+
+```javascript
+// Example Express.js server for the dashboard
+const express = require('express');
+const session = require('express-session');
+const passport = require('passport');
+const DiscordStrategy = require('passport-discord').Strategy;
+const Database = require('./database/database');
+
+const app = express();
+const db = new Database(process.env.DATABASE_PATH);
+
+// Configure session
+app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false
+}));
+
+// Configure Passport
+passport.use(new DiscordStrategy({
+    clientID: process.env.CLIENT_ID,
+    clientSecret: process.env.CLIENT_SECRET,
+    callbackURL: process.env.CALLBACK_URL,
+    scope: ['identify', 'guilds']
+}, async (accessToken, refreshToken, profile, done) => {
+    try {
+        // Check if user is a moderator in any guild
+        // This is a simplified example - in a real implementation, you would check each guild
+        return done(null, profile);
+    } catch (err) {
+        return done(err);
+    }
+}));
+
+passport.serializeUser((user, done) => {
+    done(null, user);
+});
+
+passport.deserializeUser((user, done) => {
+    done(null, user);
+});
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Routes
+app.get('/', (req, res) => {
+    res.send('<a href="/auth/discord">Login with Discord</a>');
+});
+
+app.get('/auth/discord', passport.authenticate('discord'));
+
+app.get('/auth/discord/callback', 
+    passport.authenticate('discord', { failureRedirect: '/' }),
+    (req, res) => {
+        res.redirect('/dashboard');
+    }
+);
+
+app.get('/dashboard', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.redirect('/');
+    }
+    
+    try {
+        await db.connect();
+        
+        // Get recent violations
+        const violations = await db.all(
+            `SELECT * FROM user_violations 
+            ORDER BY created_at DESC 
+            LIMIT 50`
+        );
+        
+        await db.close();
+        
+        // Render dashboard with violations data
+        res.send(`
+            <h1>Moderation Dashboard</h1>
+            <h2>Recent Violations</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Content</th>
+                        <th>Severity</th>
+                        <th>Action</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${violations.map(v => `
+                        <tr>
+                            <td>${v.username}</td>
+                            <td>${v.content.substring(0, 100)}${v.content.length > 100 ? '...' : ''}</td>
+                            <td>${v.severity}</td>
+                            <td>${v.action_taken}</td>
+                            <td>${new Date(v.created_at * 1000).toLocaleString()}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `);
+    } catch (err) {
+        console.error('Error loading dashboard:', err);
+        res.status(500).send('Error loading dashboard');
+    }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Dashboard server running on port ${PORT}`);
+});
+```
+
+## 🚀 Next Steps
+
+1. **Add More Commands**: Implement commands for managing warnings, viewing user history, and manual moderation actions.
+
+2. **Improve the Dashboard**: Enhance the web dashboard with more features, better UI, and real-time updates.
+
+3. **Add Machine Learning**: Integrate with machine learning services for more sophisticated content analysis.
+
+4. **Implement Rate Limiting**: Add rate limiting to prevent abuse of the bot's commands.
+
+5. **Add Backup System**: Implement a system to back up the database regularly.
+
+6. **Create an API**: Create an API for integrating with other services and applications.
+
+7. **Add Analytics**: Implement analytics to track moderation trends and effectiveness.
+
+This example provides a comprehensive implementation of a Discord bot for content moderation using Muzzle. You can extend and customize it based on your specific requirements.

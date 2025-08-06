@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ site.title | default: "Muzzle Documentation" }}</title>
+    <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+    <link rel="stylesheet" href="{{ '/assets/css/syntax.css' | relative_url }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <script src="{{ '/assets/js/sidebar.js' | relative_url }}"></script>
+    <script src="{{ '/assets/js/search.js' | relative_url }}"></script>
+</head>
+<body>
+    <div class="container">
+        {% include header.html %}
+        
+        <div class="main-content">
+            {% include sidebar.html %}
+            
+            <div class="content-area home">
+                <div class="hero">
+                    <h1>{{ site.title | default: "Muzzle Text Filtering System" }}</h1>
+                    <p class="hero-description">{{ site.description | default: "A comprehensive text filtering library for Node.js with flexible banned words sources" }}</p>
+                    <div class="hero-buttons">
+                        <a href="{{ '/getting-started' | relative_url }}" class="btn btn-primary">Get Started</a>
+                        <a href="{{ '/api-reference' | relative_url }}" class="btn btn-secondary">API Reference</a>
+                    </div>
+                </div>
+                
+                <div class="home-content">
+                    {{ content }}
+                </div>
+                
+                <div class="features">
+                    <h2>Key Features</h2>
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">📚</div>
+                            <h3>Multiple Sources</h3>
+                            <p>Support for strings, arrays, files, URLs, and default word lists</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">⚙️</div>
+                            <h3>Flexible Config</h3>
+                            <p>Highly customizable filtering options and parameters</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🚀</div>
+                            <h3>Performance</h3>
+                            <p>Efficient caching and batch processing capabilities</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🔧</div>
+                            <h3>Parameterized</h3>
+                            <p>Advanced word definitions with custom parameters</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">💻</div>
+                            <h3>TypeScript</h3>
+                            <p>Full TypeScript support with comprehensive types</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">✅</div>
+                            <h3>Well Tested</h3>
+                            <p>Extensive test coverage with Jest</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% include footer.html %}
+    </div>
+</body>
+</html>

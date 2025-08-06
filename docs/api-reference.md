@@ -28,12 +28,12 @@ constructor(options?: MuzzleOptions)
 import { Muzzle, MuzzleConfig } from '@ovendjs/muzzle';
 
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'string',
-      string: 'badword,profanity'
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'string',
+            string: 'badword,profanity'
+        }
     }
-  }
 };
 
 const muzzle = new Muzzle({ config });
@@ -52,10 +52,10 @@ async initialize(): Promise<void>
 **Example:**
 ```typescript
 try {
-  await muzzle.initialize();
-  console.log('✅ Muzzle initialized successfully');
+    await muzzle.initialize();
+    console.log('✅ Muzzle initialized successfully');
 } catch (error) {
-  console.error('❌ Failed to initialize Muzzle:', error);
+    console.error('❌ Failed to initialize Muzzle:', error);
 }
 ```
 
@@ -78,15 +78,15 @@ async filterText(text: string, options?: TextFilterOptions): Promise<TextMatchRe
 **Example:**
 ```typescript
 const result = await muzzle.filterText('This contains a badword', {
-  caseSensitive: false,
-  wholeWord: true
+    caseSensitive: false,
+    wholeWord: true
 });
 
 if (result.matched) {
-  console.log('🚫 Inappropriate content detected');
-  console.log('Matches:', result.matches?.map(m => m.word));
+    console.log('🚫 Inappropriate content detected');
+    console.log('Matches:', result.matches?.map(m => m.word));
 } else {
-  console.log('✅ Content is clean');
+    console.log('✅ Content is clean');
 }
 ```
 
@@ -96,17 +96,17 @@ Filter multiple content items in batch.
 
 ```typescript
 async filterBatch(
-  items: Array<{
-    text: string;
-    options?: {
-      text?: TextFilterOptions;
-      response?: ResponseFormatOptions;
-    };
-  }>,
-  batchOptions?: {
-    concurrency?: number;
-    timeout?: number;
-  }
+    items: Array<{
+        text: string;
+        options?: {
+            text?: TextFilterOptions;
+            response?: ResponseFormatOptions;
+        };
+    }>,
+    batchOptions?: {
+        concurrency?: number;
+        timeout?: number;
+    }
 ): Promise<FilterResult[]>
 ```
 
@@ -119,17 +119,17 @@ async filterBatch(
 **Example:**
 ```typescript
 const texts = [
-  'This is clean text',
-  'This contains badword',
-  'Another text with profanity'
+    'This is clean text',
+    'This contains badword',
+    'Another text with profanity'
 ];
 
 const results = await muzzle.filterBatch(
-  texts.map(text => ({ text }))
+    texts.map(text => ({ text }))
 );
 
 results.forEach((result, index) => {
-  console.log(`Text ${index + 1}: ${result.passed ? '✅ Passed' : '❌ Failed'}`);
+    console.log(`Text ${index + 1}: ${result.passed ? '✅ Passed' : '❌ Failed'}`);
 });
 ```
 
@@ -146,10 +146,10 @@ async refresh(): Promise<void>
 **Example:**
 ```typescript
 try {
-  await muzzle.refresh();
-  console.log('✅ Word lists refreshed successfully');
+    await muzzle.refresh();
+    console.log('✅ Word lists refreshed successfully');
 } catch (error) {
-  console.error('❌ Failed to refresh word lists:', error);
+    console.error('❌ Failed to refresh word lists:', error);
 }
 ```
 
@@ -190,17 +190,17 @@ async updateConfig(config: Partial<MuzzleConfig>): Promise<void>
 **Example:**
 ```typescript
 try {
-  await muzzle.updateConfig({
-    textFiltering: {
-      bannedWordsSource: {
-        type: 'string',
-        string: 'new,banned,words'
-      }
-    }
-  });
-  console.log('✅ Configuration updated successfully');
+    await muzzle.updateConfig({
+        textFiltering: {
+            bannedWordsSource: {
+                type: 'string',
+                string: 'new,banned,words'
+            }
+        }
+    });
+    console.log('✅ Configuration updated successfully');
 } catch (error) {
-  console.error('❌ Failed to update configuration:', error);
+    console.error('❌ Failed to update configuration:', error);
 }
 ```
 
@@ -231,8 +231,8 @@ Configuration interface for the Muzzle system.
 
 ```typescript
 interface MuzzleConfig {
-  textFiltering?: TextFilteringConfig;
-  processing?: ProcessingConfig;
+    textFiltering?: TextFilteringConfig;
+    processing?: ProcessingConfig;
 }
 ```
 
@@ -249,13 +249,13 @@ Configuration for text filtering behavior.
 
 ```typescript
 interface TextFilteringConfig {
-  caseSensitive?: boolean;
-  wholeWord?: boolean;
-  exactPhrase?: boolean;
-  bannedWordsSource?: BannedWordsSource;
-  maxTextLength?: number;
-  preprocessText?: boolean;
-  parameterHandling?: ParameterHandlingConfig;
+    caseSensitive?: boolean;
+    wholeWord?: boolean;
+    exactPhrase?: boolean;
+    bannedWordsSource?: BannedWordsSource;
+    maxTextLength?: number;
+    preprocessText?: boolean;
+    parameterHandling?: ParameterHandlingConfig;
 }
 ```
 
@@ -277,13 +277,13 @@ Configuration for banned words sources.
 
 ```typescript
 interface BannedWordsSource {
-  type: 'string' | 'array' | 'file' | 'url' | 'default';
-  string?: string;
-  array?: Array<string | ParameterizedWord>;
-  path?: string;
-  url?: string;
-  refreshInterval?: number;
-  cache?: boolean;
+    type: 'string' | 'array' | 'file' | 'url' | 'default';
+    string?: string;
+    array?: Array<string | ParameterizedWord>;
+    path?: string;
+    url?: string;
+    refreshInterval?: number;
+    cache?: boolean;
 }
 ```
 
@@ -305,13 +305,13 @@ Configuration for handling parameterized words.
 
 ```typescript
 interface ParameterHandlingConfig {
-  defaultParameters?: WordParameters;
-  includeParametersInResults?: boolean;
-  autoConvertNonParameterized?: boolean;
-  severityMapping?: {
-    defaultSeverity?: number;
-    byType?: Record<string, number>;
-  };
+    defaultParameters?: WordParameters;
+    includeParametersInResults?: boolean;
+    autoConvertNonParameterized?: boolean;
+    severityMapping?: {
+        defaultSeverity?: number;
+        byType?: Record<string, number>;
+    };
 }
 ```
 
@@ -330,10 +330,10 @@ Result of text filtering operation.
 
 ```typescript
 interface TextMatchResult {
-  matched: boolean;
-  matches?: TextMatch[];
-  severity?: number;
-  error?: string;
+    matched: boolean;
+    matches?: TextMatch[];
+    severity?: number;
+    error?: string;
 }
 ```
 
@@ -352,10 +352,10 @@ Individual match found in text.
 
 ```typescript
 interface TextMatch {
-  word: string;
-  position: number;
-  context: string;
-  parameters?: WordParameters;
+    word: string;
+    position: number;
+    context: string;
+    parameters?: WordParameters;
 }
 ```
 
@@ -374,9 +374,9 @@ Parameters associated with a word.
 
 ```typescript
 interface WordParameters {
-  type?: string;
-  severity?: number;
-  [key: string]: any;
+    type?: string;
+    severity?: number;
+    [key: string]: any;
 }
 ```
 
@@ -394,14 +394,14 @@ Formatted response from content filtering.
 
 ```typescript
 interface FilterResult {
-  passed: boolean;
-  text?: TextMatchResult;
-  severity: number;
-  metadata?: {
-    processingTime: number;
-    timestamp: Date;
-    [key: string]: any;
-  };
+    passed: boolean;
+    text?: TextMatchResult;
+    severity: number;
+    metadata?: {
+        processingTime: number;
+        timestamp: Date;
+        [key: string]: any;
+    };
 }
 ```
 
@@ -420,9 +420,9 @@ System status information.
 
 ```typescript
 interface MuzzleStatus {
-  initialized: boolean;
-  wordListSize?: number;
-  lastUpdated?: number;
+    initialized: boolean;
+    wordListSize?: number;
+    lastUpdated?: number;
 }
 ```
 
@@ -445,8 +445,8 @@ Handles comma-separated strings of banned words.
 **Configuration:**
 ```typescript
 {
-  type: 'string',
-  string: 'badword,profanity,swear'
+    type: 'string',
+    string: 'badword,profanity,swear'
 }
 ```
 
@@ -462,12 +462,12 @@ Handles arrays of banned words.
 **Configuration:**
 ```typescript
 {
-  type: 'array',
-  array: [
-    'badword',
-    'profanity',
-    { word: 'hate', parameters: { type: 'hate', severity: 8 } }
-  ]
+    type: 'array',
+    array: [
+        'badword',
+        'profanity',
+        { word: 'hate', parameters: { type: 'hate', severity: 8 } }
+    ]
 }
 ```
 
@@ -483,8 +483,8 @@ Handles banned words from local files.
 **Configuration:**
 ```typescript
 {
-  type: 'file',
-  path: './banned-words.txt'
+    type: 'file',
+    path: './banned-words.txt'
 }
 ```
 
@@ -500,10 +500,10 @@ Handles banned words from URLs with automatic refresh.
 **Configuration:**
 ```typescript
 {
-  type: 'url',
-  url: 'https://raw.githubusercontent.com/coffee-and-fun/google-profanity-words/main/data/en.txt',
-  refreshInterval: 86400000, // 24 hours
-  cache: true
+    type: 'url',
+    url: 'https://raw.githubusercontent.com/coffee-and-fun/google-profanity-words/main/data/en.txt',
+    refreshInterval: 86400000, // 24 hours
+    cache: true
 }
 ```
 
@@ -519,9 +519,9 @@ Uses the default GitHub profanity words list.
 **Configuration:**
 ```typescript
 {
-  type: 'default',
-  refreshInterval: 86400000, // 24 hours
-  cache: true
+    type: 'default',
+    refreshInterval: 86400000, // 24 hours
+    cache: true
 }
 ```
 
@@ -540,12 +540,12 @@ Errors during initialization are thrown and should be caught with try-catch bloc
 
 ```typescript
 try {
-  const muzzle = new Muzzle({ config });
-  await muzzle.initialize();
-  console.log('✅ Muzzle initialized successfully');
+    const muzzle = new Muzzle({ config });
+    await muzzle.initialize();
+    console.log('✅ Muzzle initialized successfully');
 } catch (error) {
-  console.error('❌ Initialization error:', error);
-  // Handle initialization errors
+    console.error('❌ Initialization error:', error);
+    // Handle initialization errors
 }
 ```
 
@@ -557,8 +557,8 @@ Errors during filtering are returned in the `error` property of the result objec
 const result = await muzzle.filterText('Some text');
 
 if (result.error) {
-  console.error('❌ Filtering error:', result.error);
-  // Handle filtering errors
+    console.error('❌ Filtering error:', result.error);
+    // Handle filtering errors
 }
 ```
 
@@ -568,24 +568,24 @@ For URL-based word lists, network errors are handled gracefully with retry mecha
 
 ```typescript
 const config = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'url',
-      url: 'https://example.com/banned-words.txt'
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'url',
+            url: 'https://example.com/banned-words.txt'
+        }
     }
-  }
 };
 
 try {
-  const muzzle = new Muzzle({ config });
-  await muzzle.initialize();
+    const muzzle = new Muzzle({ config });
+    await muzzle.initialize();
 } catch (error) {
-  if (error.code === 'NETWORK_ERROR') {
-    console.error('❌ Network error:', error.message);
-    // Implement fallback mechanism
-  } else {
-    console.error('❌ Initialization error:', error);
-  }
+    if (error.code === 'NETWORK_ERROR') {
+        console.error('❌ Network error:', error.message);
+        // Implement fallback mechanism
+    } else {
+        console.error('❌ Initialization error:', error);
+    }
 }
 ```
 
@@ -595,23 +595,23 @@ Configuration validation errors are thrown during initialization.
 
 ```typescript
 try {
-  const config = {
-    textFiltering: {
-      bannedWordsSource: {
-        type: 'invalid-type' // This will cause a validation error
-      }
-    }
-  };
-  
-  const muzzle = new Muzzle({ config });
-  await muzzle.initialize();
+    const config = {
+        textFiltering: {
+            bannedWordsSource: {
+                type: 'invalid-type' // This will cause a validation error
+            }
+        }
+    };
+    
+    const muzzle = new Muzzle({ config });
+    await muzzle.initialize();
 } catch (error) {
-  if (error.code === 'INVALID_CONFIG') {
-    console.error('❌ Configuration error:', error.message);
-    // Fix configuration
-  } else {
-    console.error('❌ Unexpected error:', error);
-  }
+    if (error.code === 'INVALID_CONFIG') {
+        console.error('❌ Configuration error:', error.message);
+        // Fix configuration
+    } else {
+        console.error('❌ Unexpected error:', error);
+    }
 }
 ```
 
@@ -633,14 +633,14 @@ Enable caching for URL-based word lists to improve performance.
 
 ```typescript
 const config = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'url',
-      url: 'https://example.com/banned-words.txt',
-      cache: true, // Enable caching
-      refreshInterval: 86400000 // Refresh every 24 hours
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'url',
+            url: 'https://example.com/banned-words.txt',
+            cache: true, // Enable caching
+            refreshInterval: 86400000 // Refresh every 24 hours
+        }
     }
-  }
 };
 ```
 
@@ -654,8 +654,8 @@ const results = await muzzle.filterBatch(texts.map(text => ({ text })));
 
 // ❌ Bad: Process texts one by one
 for (const text of texts) {
-  const result = await muzzle.filterText(text);
-  // Process result
+    const result = await muzzle.filterText(text);
+    // Process result
 }
 ```
 
@@ -665,13 +665,13 @@ Enable text preprocessing for better matching performance.
 
 ```typescript
 const config = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'string',
-      string: 'badword,profanity'
-    },
-    preprocessText: true // Enable preprocessing
-  }
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'string',
+            string: 'badword,profanity'
+        },
+        preprocessText: true // Enable preprocessing
+    }
 };
 ```
 
@@ -682,22 +682,22 @@ Large word lists may impact performance. Consider using only relevant words.
 ```typescript
 // ✅ Good: Use focused word lists
 const config = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'string',
-      string: 'badword,profanity,swear,hate,violence' // Only relevant words
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'string',
+            string: 'badword,profanity,swear,hate,violence' // Only relevant words
+        }
     }
-  }
 };
 
 // ❌ Bad: Use excessively large word lists
 const config = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'url',
-      url: 'https://example.com/huge-word-list.txt' // 100,000+ words
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'url',
+            url: 'https://example.com/huge-word-list.txt' // 100,000+ words
+        }
     }
-  }
 };
 ```
 
@@ -713,13 +713,13 @@ console.log(`Memory usage: ${Math.round(memoryUsage.heapUsed / 1024 / 1024)} MB`
 
 // Set appropriate text length limits
 const config = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'string',
-      string: 'badword,profanity'
-    },
-    maxTextLength: 10000 // Limit text length
-  }
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'string',
+            string: 'badword,profanity'
+        },
+        maxTextLength: 10000 // Limit text length
+    }
 };
 ```
 
@@ -729,10 +729,10 @@ Set appropriate concurrency limits for batch processing.
 
 ```typescript
 const results = await muzzle.filterBatch(
-  texts.map(text => ({ text })),
-  {
-    concurrency: 10 // Process 10 texts concurrently
-  }
+    texts.map(text => ({ text })),
+    {
+        concurrency: 10 // Process 10 texts concurrently
+    }
 );
 ```
 

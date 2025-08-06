@@ -18,11 +18,11 @@ Muzzle uses a flexible configuration system that allows you to customize every a
 import { MuzzleConfig } from '@ovendjs/muzzle';
 
 interface MuzzleConfig {
-  // Text filtering configuration
-  textFiltering?: TextFilteringConfig;
-  
-  // Processing configuration
-  processing?: ProcessingConfig;
+    // Text filtering configuration
+    textFiltering?: TextFilteringConfig;
+    
+    // Processing configuration
+    processing?: ProcessingConfig;
 }
 ```
 
@@ -42,12 +42,12 @@ Use comma-separated strings for simple word lists.
 import { MuzzleConfig } from '@ovendjs/muzzle';
 
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'string',
-      string: 'badword,profanity,swear,curse,hate,violence'
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'string',
+            string: 'badword,profanity,swear,curse,hate,violence'
+        }
     }
-  }
 };
 ```
 
@@ -66,18 +66,18 @@ Use JavaScript arrays for programmatic word lists.
 
 ```typescript
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'array',
-      array: [
-        'badword',
-        'profanity',
-        'swear',
-        { word: 'hate', parameters: { type: 'hate', severity: 8 } },
-        { word: 'violence', parameters: { type: 'violence', severity: 7 } }
-      ]
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'array',
+            array: [
+                'badword',
+                'profanity',
+                'swear',
+                { word: 'hate', parameters: { type: 'hate', severity: 8 } },
+                { word: 'violence', parameters: { type: 'violence', severity: 7 } }
+            ]
+        }
     }
-  }
 };
 ```
 
@@ -96,14 +96,14 @@ Load banned words from local files in various formats.
 
 ```typescript
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'file',
-      path: './banned-words.txt',
-      refreshInterval: 3600000, // 1 hour
-      cache: true
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'file',
+            path: './banned-words.txt',
+            refreshInterval: 3600000, // 1 hour
+            cache: true
+        }
     }
-  }
 };
 ```
 
@@ -122,17 +122,17 @@ violence
 **JSON Format (.json):**
 ```json
 [
-  "badword",
-  "profanity",
-  "swear",
-  "curse",
-  {
-    "word": "hate",
-    "parameters": {
-      "type": "hate",
-      "severity": 8
+    "badword",
+    "profanity",
+    "swear",
+    "curse",
+    {
+        "word": "hate",
+        "parameters": {
+            "type": "hate",
+            "severity": 8
+        }
     }
-  }
 ]
 ```
 
@@ -153,15 +153,15 @@ Fetch banned words from remote URLs with automatic refresh.
 
 ```typescript
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'url',
-      url: 'https://raw.githubusercontent.com/coffee-and-fun/google-profanity-words/main/data/en.txt',
-      refreshInterval: 86400000, // 24 hours
-      cache: true,
-      timeout: 10000 // 10 seconds
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'url',
+            url: 'https://raw.githubusercontent.com/coffee-and-fun/google-profanity-words/main/data/en.txt',
+            refreshInterval: 86400000, // 24 hours
+            cache: true,
+            timeout: 10000 // 10 seconds
+        }
     }
-  }
 };
 ```
 
@@ -183,13 +183,13 @@ Use the built-in GitHub profanity words list.
 
 ```typescript
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'default',
-      refreshInterval: 86400000, // 24 hours
-      cache: true
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'default',
+            refreshInterval: 86400000, // 24 hours
+            cache: true
+        }
     }
-  }
 };
 ```
 
@@ -209,15 +209,15 @@ Configure how words are matched in the text.
 
 ```typescript
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'string',
-      string: 'badword,profanity'
-    },
-    caseSensitive: false,    // Match case-insensitively
-    wholeWord: true,        // Match whole words only
-    exactPhrase: false      // Don't require exact phrase matching
-  }
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'string',
+            string: 'badword,profanity'
+        },
+        caseSensitive: false,    // Match case-insensitively
+        wholeWord: true,        // Match whole words only
+        exactPhrase: false      // Don't require exact phrase matching
+    }
 };
 ```
 
@@ -234,37 +234,37 @@ const config: MuzzleConfig = {
 ```typescript
 // Case-insensitive matching (default)
 const config1 = {
-  textFiltering: {
-    bannedWordsSource: { type: 'string', string: 'badword' },
-    caseSensitive: false
-  }
+    textFiltering: {
+        bannedWordsSource: { type: 'string', string: 'badword' },
+        caseSensitive: false
+    }
 };
 // Matches: "badword", "BadWord", "BADWORD"
 
 // Case-sensitive matching
 const config2 = {
-  textFiltering: {
-    bannedWordsSource: { type: 'string', string: 'badword' },
-    caseSensitive: true
-  }
+    textFiltering: {
+        bannedWordsSource: { type: 'string', string: 'badword' },
+        caseSensitive: true
+    }
 };
 // Matches: "badword" only
 
 // Whole word matching
 const config3 = {
-  textFiltering: {
-    bannedWordsSource: { type: 'string', string: 'bad' },
-    wholeWord: true
-  }
+    textFiltering: {
+        bannedWordsSource: { type: 'string', string: 'bad' },
+        wholeWord: true
+    }
 };
 // Matches: "bad" but not "badminton"
 
 // Partial word matching
 const config4 = {
-  textFiltering: {
-    bannedWordsSource: { type: 'string', string: 'bad' },
-    wholeWord: false
-  }
+    textFiltering: {
+        bannedWordsSource: { type: 'string', string: 'bad' },
+        wholeWord: false
+    }
 };
 // Matches: "bad", "badminton", "badass"
 ```
@@ -275,14 +275,14 @@ Configure performance-related settings.
 
 ```typescript
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'string',
-      string: 'badword,profanity'
-    },
-    maxTextLength: 1000000,    // Maximum text length to process
-    preprocessText: true      // Preprocess text before filtering
-  }
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'string',
+            string: 'badword,profanity'
+        },
+        maxTextLength: 1000000,    // Maximum text length to process
+        preprocessText: true      // Preprocess text before filtering
+    }
 };
 ```
 
@@ -319,13 +319,13 @@ Muzzle supports multiple formats for parameterized words:
 #### Object Format
 ```typescript
 {
-  word: 'hate',
-  parameters: {
-    type: 'hate',
-    severity: 9,
-    blocked: true,
-    customFlag: 'value'
-  }
+    word: 'hate',
+    parameters: {
+        type: 'hate',
+        severity: 9,
+        blocked: true,
+        customFlag: 'value'
+    }
 }
 ```
 
@@ -333,14 +333,14 @@ Muzzle supports multiple formats for parameterized words:
 ```typescript
 // Arrays can contain both string and object formats
 [
-  'badword[type=slur][severity=8]',
-  {
-    word: 'profanity',
-    parameters: {
-      type: 'profanity',
-      severity: 5
+    'badword[type=slur][severity=8]',
+    {
+        word: 'profanity',
+        parameters: {
+            type: 'profanity',
+            severity: 5
+        }
     }
-  }
 ]
 ```
 
@@ -350,31 +350,31 @@ Configure how parameterized words are handled and processed.
 
 ```typescript
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'string',
-      string: 'badword[type=slur][severity=8],profanity[type=profanity][severity=5]'
-    },
-    parameterHandling: {
-      defaultParameters: {
-        type: 'unknown'
-      },
-      includeParametersInResults: true,
-      autoConvertNonParameterized: true,
-      severityMapping: {
-        defaultSeverity: 1,
-        byType: {
-          'slur': 8,
-          'profanity': 5,
-          'hate': 9,
-          'harassment': 7,
-          'violence': 6,
-          'adult': 4,
-          'unknown': 1
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'string',
+            string: 'badword[type=slur][severity=8],profanity[type=profanity][severity=5]'
+        },
+        parameterHandling: {
+            defaultParameters: {
+                type: 'unknown'
+            },
+            includeParametersInResults: true,
+            autoConvertNonParameterized: true,
+            severityMapping: {
+                defaultSeverity: 1,
+                byType: {
+                    'slur': 8,
+                    'profanity': 5,
+                    'hate': 9,
+                    'harassment': 7,
+                    'violence': 6,
+                    'adult': 4,
+                    'unknown': 1
+                }
+            }
         }
-      }
     }
-  }
 };
 ```
 
@@ -400,29 +400,29 @@ Parameterized words enable sophisticated content filtering based on categories a
 
 ```typescript
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'string',
-      string: `
-        badword[type=profanity][severity=3],
-        hate[type=hate][severity=9],
-        violence[type=violence][severity=7],
-        slur[type=slur][severity=8]
-      `
-    },
-    parameterHandling: {
-      includeParametersInResults: true,
-      severityMapping: {
-        defaultSeverity: 1,
-        byType: {
-          'profanity': 3,
-          'hate': 9,
-          'violence': 7,
-          'slur': 8
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'string',
+            string: `
+                badword[type=profanity][severity=3],
+                hate[type=hate][severity=9],
+                violence[type=violence][severity=7],
+                slur[type=slur][severity=8]
+            `
+        },
+        parameterHandling: {
+            includeParametersInResults: true,
+            severityMapping: {
+                defaultSeverity: 1,
+                byType: {
+                    'profanity': 3,
+                    'hate': 9,
+                    'violence': 7,
+                    'slur': 8
+                }
+            }
         }
-      }
     }
-  }
 };
 
 const muzzle = new Muzzle({ config });
@@ -431,38 +431,38 @@ await muzzle.initialize();
 const result = await muzzle.filterText('This contains hate speech and profanity');
 
 if (result.matched) {
-  console.log('Matches found:');
-  result.matches?.forEach(match => {
-    console.log(`- Word: ${match.word}`);
-    console.log(`  Type: ${match.parameters?.type}`);
-    console.log(`  Severity: ${match.parameters?.severity}`);
-    console.log(`  Position: ${match.position}`);
-  });
-  
-  // Calculate overall severity
-  const maxSeverity = Math.max(...result.matches.map(m => m.parameters?.severity || 1));
-  console.log(`Overall severity: ${maxSeverity}/10`);
+    console.log('Matches found:');
+    result.matches?.forEach(match => {
+        console.log(`- Word: ${match.word}`);
+        console.log(`  Type: ${match.parameters?.type}`);
+        console.log(`  Severity: ${match.parameters?.severity}`);
+        console.log(`  Position: ${match.position}`);
+    });
+    
+    // Calculate overall severity
+    const maxSeverity = Math.max(...result.matches.map(m => m.parameters?.severity || 1));
+    console.log(`Overall severity: ${maxSeverity}/10`);
 }
 ```
 
 **🔍 Use Cases for Parameterized Words:**
 
 1. **Content Moderation Tiers**:
-   - Low severity (1-3): Warning or flag for review
-   - Medium severity (4-6): Automatic removal with user notification
-   - High severity (7-8): Immediate removal and temporary suspension
-   - Critical severity (9-10): Immediate removal and permanent ban
+    - Low severity (1-3): Warning or flag for review
+    - Medium severity (4-6): Automatic removal with user notification
+    - High severity (7-8): Immediate removal and temporary suspension
+    - Critical severity (9-10): Immediate removal and permanent ban
 
 2. **Category-Based Actions**:
-   - Profanity: Replace with asterisks
-   - Hate speech: Immediate removal and report
-   - Violence: Remove and escalate to moderators
-   - Harassment: Remove and initiate safety protocols
+    - Profanity: Replace with asterisks
+    - Hate speech: Immediate removal and report
+    - Violence: Remove and escalate to moderators
+    - Harassment: Remove and initiate safety protocols
 
 3. **Context-Aware Filtering**:
-   - Different rules for different content types
-   - Age-appropriate filtering based on user demographics
-   - Cultural sensitivity adjustments
+    - Different rules for different content types
+    - Age-appropriate filtering based on user demographics
+    - Cultural sensitivity adjustments
 
 ## 🚀 Processing Configuration
 
@@ -470,22 +470,22 @@ Configure how text is processed and filtered.
 
 ```typescript
 const config: MuzzleConfig = {
-  processing: {
-    async: true,  // Enable asynchronous processing
-    batch: {
-      enabled: true,
-      size: 50,
-      timeout: 30000
-    },
-    concurrency: {
-      max: 10,
-      queueSize: 100
-    },
-    timeout: {
-      text: 10000,
-      overall: 30000
+    processing: {
+        async: true,  // Enable asynchronous processing
+        batch: {
+            enabled: true,
+            size: 50,
+            timeout: 30000
+        },
+        concurrency: {
+            max: 10,
+            queueSize: 100
+        },
+        timeout: {
+            text: 10000,
+            overall: 30000
+        }
     }
-  }
 };
 ```
 
@@ -588,12 +588,12 @@ Muzzle automatically validates configuration on initialization. Validation error
 
 ```typescript
 try {
-  const muzzle = new Muzzle({ config });
-  await muzzle.initialize();
-  console.log('✅ Configuration is valid');
+    const muzzle = new Muzzle({ config });
+    await muzzle.initialize();
+    console.log('✅ Configuration is valid');
 } catch (error) {
-  console.error('❌ Configuration error:', error.message);
-  // Handle configuration errors
+    console.error('❌ Configuration error:', error.message);
+    // Handle configuration errors
 }
 ```
 
@@ -618,12 +618,12 @@ await muzzle.initialize();
 
 // Update configuration
 await muzzle.updateConfig({
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'string',
-      string: 'new,banned,words'
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'string',
+            string: 'new,banned,words'
+        }
     }
-  }
 });
 ```
 
@@ -643,35 +643,35 @@ When updating configuration, Muzzle will:
 ## 🎯 Best Practices
 
 ### 1. Choose the Right Word List Source
-   - Use `string` or `array` for small, static word lists
-   - Use `file` for large, version-controlled word lists
-   - Use `url` for centrally managed, dynamic word lists
-   - Use `default` for general-purpose filtering
+    - Use `string` or `array` for small, static word lists
+    - Use `file` for large, version-controlled word lists
+    - Use `url` for centrally managed, dynamic word lists
+    - Use `default` for general-purpose filtering
 
 ### 2. Configure Caching Appropriately
-   - Enable caching for URL and file sources
-   - Set appropriate TTL values based on how often word lists change
-   - Monitor cache memory usage in production
+    - Enable caching for URL and file sources
+    - Set appropriate TTL values based on how often word lists change
+    - Monitor cache memory usage in production
 
 ### 3. Optimize Performance
-   - Use batch processing for multiple texts
-   - Set appropriate concurrency limits
-   - Configure timeouts based on your use case
+    - Use batch processing for filtering multiple texts
+    - Set appropriate concurrency limits
+    - Configure timeouts based on your use case
 
 ### 4. Handle Errors Gracefully
-   - Always wrap initialization in try-catch blocks
-   - Implement fallback mechanisms for URL-based sources
-   - Monitor for configuration validation errors
+    - Always wrap initialization in try-catch blocks
+    - Implement fallback mechanisms for URL-based sources
+    - Monitor for configuration validation errors
 
 ### 5. Monitor and Adjust
-   - Use the status API to monitor system health
-   - Adjust configuration based on performance metrics
-   - Regularly review and update word lists
+    - Use the status API to monitor system health
+    - Adjust configuration based on performance metrics
+    - Regularly review and update word lists
 
 ### 6. Use Parameterized Words for Sophisticated Filtering
-   - Categorize words by type and severity
-   - Implement different actions based on severity levels
-   - Use context-aware filtering for better user experience
+    - Categorize words by type and severity
+    - Implement different actions based on severity levels
+    - Use context-aware filtering for better user experience
 
 ---
 

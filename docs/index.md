@@ -3,19 +3,7 @@ layout: home
 title: Muzzle Text Filtering System
 ---
 
-# Muzzle Text Filtering System
-
 Muzzle is a comprehensive, flexible, and powerful text filtering library for Node.js applications. It provides an easy-to-use interface for filtering inappropriate content with support for multiple banned words sources, parameterized word definitions, and advanced matching strategies.
-
-## ✨ Key Features
-
-- **📚 Multiple Banned Words Sources**: Support for comma-separated strings, arrays, local files, URLs, and a default GitHub profanity words list
-- **⚙️ Flexible Configuration**: Highly customizable filtering options including case sensitivity, whole word matching, and regex support
-- **🚀 Performance Optimized**: Efficient caching mechanisms and batch processing capabilities
-- **🔧 Parameterized Words**: Advanced word definitions with custom parameters for sophisticated filtering
-- **💻 TypeScript Support**: Full TypeScript support with strict type checking and comprehensive IntelliSense
-- **✅ Comprehensive Testing**: Extensive test coverage with Jest
-- **🔌 Easy Integration**: Simple API that integrates seamlessly with any Node.js application
 
 ## 🚀 Quick Start
 
@@ -103,10 +91,6 @@ const config = {
 };
 ```
 
-## 🚀 Getting Started
-
-Check out our [Getting Started](getting-started.md) guide to learn how to integrate Muzzle into your application, or explore the [API Reference](api-reference.md) for detailed documentation of all available methods and options.
-
 ## 📚 Documentation
 
 - **[Getting Started](getting-started.md)** - Learn the basics and get up and running quickly
@@ -117,7 +101,3 @@ Check out our [Getting Started](getting-started.md) guide to learn how to integr
 ## 🤝 Contributing
 
 We welcome contributions from the community! Please see our contributing guidelines in the main repository for information on how to get involved.
-
-## 📄 License
-
-Muzzle is licensed under the MIT License. See the [LICENSE](../LICENSE) file for more information.

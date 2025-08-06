@@ -47,13 +47,13 @@ await muzzle.initialize();
 const result = await muzzle.filterText('This text contains some bad words');
 
 if (result.matched) {
-  console.log('🚫 Found inappropriate content:');
-  result.matches?.forEach(match => {
-    console.log(`- "${match.word}" at position ${match.position}`);
-    console.log(`  Context: "${match.context}"`);
-  });
+    console.log('🚫 Found inappropriate content:');
+    result.matches?.forEach(match => {
+        console.log(`- "${match.word}" at position ${match.position}`);
+        console.log(`  Context: "${match.context}"`);
+    });
 } else {
-  console.log('✅ Content is clean');
+    console.log('✅ Content is clean');
 }
 ```
 
@@ -71,12 +71,12 @@ Perfect for simple, static word lists:
 import { Muzzle, MuzzleConfig } from '@ovendjs/muzzle';
 
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'string',
-      string: 'badword,profanity,swear,curse,hate,violence'
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'string',
+            string: 'badword,profanity,swear,curse,hate,violence'
+        }
     }
-  }
 };
 
 const muzzle = new Muzzle({ config });
@@ -92,18 +92,18 @@ Great for programmatically defined word lists:
 
 ```typescript
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'array',
-      array: [
-        'badword',
-        'profanity',
-        'swear',
-        { word: 'hate', parameters: { type: 'hate', severity: 8 } },
-        { word: 'violence', parameters: { type: 'violence', severity: 7 } }
-      ]
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'array',
+            array: [
+                'badword',
+                'profanity',
+                'swear',
+                { word: 'hate', parameters: { type: 'hate', severity: 8 } },
+                { word: 'violence', parameters: { type: 'violence', severity: 7 } }
+            ]
+        }
     }
-  }
 };
 
 const muzzle = new Muzzle({ config });
@@ -116,12 +116,12 @@ Ideal for local word lists that might change:
 
 ```typescript
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'file',
-      path: './banned-words.txt' // Path to your word list file
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'file',
+            path: './banned-words.txt' // Path to your word list file
+        }
     }
-  }
 };
 
 const muzzle = new Muzzle({ config });
@@ -136,14 +136,14 @@ Perfect for remote word lists that are regularly updated:
 
 ```typescript
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'url',
-      url: 'https://raw.githubusercontent.com/coffee-and-fun/google-profanity-words/main/data/en.txt',
-      refreshInterval: 86400000, // Refresh every 24 hours
-      cache: true // Enable caching for better performance
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'url',
+            url: 'https://raw.githubusercontent.com/coffee-and-fun/google-profanity-words/main/data/en.txt',
+            refreshInterval: 86400000, // Refresh every 24 hours
+            cache: true // Enable caching for better performance
+        }
     }
-  }
 };
 
 const muzzle = new Muzzle({ config });
@@ -160,28 +160,28 @@ Muzzle provides various configuration options to customize the filtering behavio
 import { Muzzle, MuzzleConfig } from '@ovendjs/muzzle';
 
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'string',
-      string: 'badword,profanity,swear'
-    },
-    caseSensitive: false,        // Case insensitive matching
-    wholeWord: true,            // Match whole words only
-    exactPhrase: false,         // Don't require exact phrase matching
-    maxTextLength: 1000000,     // Maximum text length to process
-    preprocessText: true,       // Preprocess text before filtering
-    parameterHandling: {
-      includeParametersInResults: true,
-      severityMapping: {
-        defaultSeverity: 1,
-        byType: {
-          'profanity': 3,
-          'hate': 8,
-          'violence': 7
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'string',
+            string: 'badword,profanity,swear'
+        },
+        caseSensitive: false,        // Case insensitive matching
+        wholeWord: true,            // Match whole words only
+        exactPhrase: false,         // Don't require exact phrase matching
+        maxTextLength: 1000000,     // Maximum text length to process
+        preprocessText: true,       // Preprocess text before filtering
+        parameterHandling: {
+            includeParametersInResults: true,
+            severityMapping: {
+                defaultSeverity: 1,
+                byType: {
+                    'profanity': 3,
+                    'hate': 8,
+                    'violence': 7
+                }
+            }
         }
-      }
     }
-  }
 };
 
 const muzzle = new Muzzle({ config });
@@ -206,20 +206,20 @@ For filtering multiple texts efficiently, use batch processing:
 
 ```typescript
 const texts = [
-  'This is clean text',
-  'This contains badword',
-  'Another text with profanity',
-  'This is also clean'
+    'This is clean text',
+    'This contains badword',
+    'Another text with profanity',
+    'This is also clean'
 ];
 
 const results = await muzzle.filterBatch(texts.map(text => ({ text })));
 
 results.forEach((result, index) => {
-  console.log(`Text ${index + 1}: ${result.passed ? '✅ Passed' : '❌ Failed'}`);
-  
-  if (!result.passed && result.text?.matched) {
-    console.log(`  Matches: ${result.text.matches?.map(m => m.word).join(', ')}`);
-  }
+    console.log(`Text ${index + 1}: ${result.passed ? '✅ Passed' : '❌ Failed'}`);
+    
+    if (!result.passed && result.text?.matched) {
+        console.log(`  Matches: ${result.text.matches?.map(m => m.word).join(', ')}`);
+    }
 });
 
 // Calculate statistics
@@ -240,30 +240,30 @@ Muzzle provides robust error handling. Always wrap your calls in try-catch block
 
 ```typescript
 try {
-  const muzzle = new Muzzle({ config });
-  await muzzle.initialize();
-  const result = await muzzle.filterText('Some text to filter');
-  
-  if (result.matched) {
-    console.log('🚫 Inappropriate content detected');
-    // Handle inappropriate content
-  } else {
-    console.log('✅ Content is clean');
-    // Process clean content
-  }
+    const muzzle = new Muzzle({ config });
+    await muzzle.initialize();
+    const result = await muzzle.filterText('Some text to filter');
+    
+    if (result.matched) {
+        console.log('🚫 Inappropriate content detected');
+        // Handle inappropriate content
+    } else {
+        console.log('✅ Content is clean');
+        // Process clean content
+    }
 } catch (error) {
-  console.error('❌ Text filtering failed:', error);
-  
-  // Handle specific error types
-  if (error.code === 'WORD_LIST_LOAD_FAILED') {
-    console.error('Failed to load word list');
-  } else if (error.code === 'INVALID_CONFIG') {
-    console.error('Invalid configuration');
-  } else {
-    console.error('Unknown error occurred');
-  }
-  
-  // Implement fallback behavior or show user-friendly error message
+    console.error('❌ Text filtering failed:', error);
+    
+    // Handle specific error types
+    if (error.code === 'WORD_LIST_LOAD_FAILED') {
+        console.error('Failed to load word list');
+    } else if (error.code === 'INVALID_CONFIG') {
+        console.error('Invalid configuration');
+    } else {
+        console.error('Unknown error occurred');
+    }
+    
+    // Implement fallback behavior or show user-friendly error message
 }
 ```
 
@@ -289,67 +289,67 @@ app.use(express.json());
 
 // Configure Muzzle for Express
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'url',
-      url: 'https://raw.githubusercontent.com/coffee-and-fun/google-profanity-words/main/data/en.txt',
-      cache: true
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'url',
+            url: 'https://raw.githubusercontent.com/coffee-and-fun/google-profanity-words/main/data/en.txt',
+            cache: true
+        }
     }
-  }
 };
 
 const muzzle = new Muzzle({ config });
 
 // Initialize Muzzle on startup
 async function initializeApp() {
-  try {
-    await muzzle.initialize();
-    console.log('✅ Muzzle initialized successfully');
-  } catch (error) {
-    console.error('❌ Failed to initialize Muzzle:', error);
-    process.exit(1);
-  }
+    try {
+        await muzzle.initialize();
+        console.log('✅ Muzzle initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize Muzzle:', error);
+        process.exit(1);
+    }
 }
 
 // Middleware to filter request body
 app.use(async (req, res, next) => {
-  try {
-    if (req.body.text) {
-      const result = await muzzle.filterText(req.body.text);
-      if (result.matched) {
-        return res.status(400).json({
-          success: false,
-          error: 'Inappropriate content detected',
-          matches: result.matches?.map(match => ({
-            word: match.word,
-            context: match.context,
-            position: match.position
-          })),
-          suggestion: 'Please remove inappropriate language and try again'
+    try {
+        if (req.body.text) {
+            const result = await muzzle.filterText(req.body.text);
+            if (result.matched) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Inappropriate content detected',
+                    matches: result.matches?.map(match => ({
+                        word: match.word,
+                        context: match.context,
+                        position: match.position
+                    })),
+                    suggestion: 'Please remove inappropriate language and try again'
+                });
+            }
+        }
+        next();
+    } catch (error) {
+        console.error('🚨 Error filtering text:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
         });
-      }
     }
-    next();
-  } catch (error) {
-    console.error('🚨 Error filtering text:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error'
-    });
-  }
 });
 
 app.post('/comment', (req, res) => {
-  // Process the comment (already filtered)
-  res.json({ success: true, message: 'Comment posted successfully' });
+    // Process the comment (already filtered)
+    res.json({ success: true, message: 'Comment posted successfully' });
 });
 
 // Start the server
 initializeApp().then(() => {
-  const port = process.env.PORT || 3000;
-  app.listen(port, () => {
-    console.log(`🚀 Server running on port ${port}`);
-  });
+    const port = process.env.PORT || 3000;
+    app.listen(port, () => {
+        console.log(`🚀 Server running on port ${port}`);
+    });
 });
 ```
 
@@ -361,93 +361,93 @@ import { Muzzle, MuzzleConfig } from '@ovendjs/muzzle';
 
 // Configure Muzzle for React
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'string',
-      string: 'badword,profanity,swear,curse,hate,violence'
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'string',
+            string: 'badword,profanity,swear,curse,hate,violence'
+        }
     }
-  }
 };
 
 const muzzle = new Muzzle({ config });
 
 function CommentForm() {
-  const [comment, setComment] = useState('');
-  const [error, setError] = useState('');
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+    const [comment, setComment] = useState('');
+    const [error, setError] = useState('');
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Initialize Muzzle on component mount
-  useEffect(() => {
-    async function initialize() {
-      try {
-        await muzzle.initialize();
-        setIsInitialized(true);
-      } catch (err) {
-        console.error('Failed to initialize Muzzle:', err);
-        setError('Failed to initialize content filter');
-      }
-    }
-    
-    initialize();
-  }, []);
+    // Initialize Muzzle on component mount
+    useEffect(() => {
+        async function initialize() {
+            try {
+                await muzzle.initialize();
+                setIsInitialized(true);
+            } catch (err) {
+                console.error('Failed to initialize Muzzle:', err);
+                setError('Failed to initialize content filter');
+            }
+        }
+        
+        initialize();
+    }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!isInitialized) {
-      setError('Content filter not ready. Please try again.');
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      const result = await muzzle.filterText(comment);
-      
-      if (result.matched) {
-        const matchedWords = result.matches?.map(m => m.word).join(', ');
-        setError(`Please remove inappropriate language from your comment: ${matchedWords}`);
-      } else {
-        // Submit the comment
-        setError('');
-        console.log('✅ Comment submitted:', comment);
-        // Here you would typically send the comment to your server
-        alert('Comment submitted successfully!');
-        setComment('');
-      }
-    } catch (err) {
-      console.error('Failed to validate comment:', err);
-      setError('Failed to validate comment. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        if (!isInitialized) {
+            setError('Content filter not ready. Please try again.');
+            return;
+        }
+        
+        setIsSubmitting(true);
+        
+        try {
+            const result = await muzzle.filterText(comment);
+            
+            if (result.matched) {
+                const matchedWords = result.matches?.map(m => m.word).join(', ');
+                setError(`Please remove inappropriate language from your comment: ${matchedWords}`);
+            } else {
+                // Submit the comment
+                setError('');
+                console.log('✅ Comment submitted:', comment);
+                // Here you would typically send the comment to your server
+                alert('Comment submitted successfully!');
+                setComment('');
+            }
+        } catch (err) {
+            console.error('Failed to validate comment:', err);
+            setError('Failed to validate comment. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
-  return (
-    <form onSubmit={handleSubmit} className="comment-form">
-      <textarea
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-        placeholder="Enter your comment..."
-        className="comment-textarea"
-        disabled={!isInitialized || isSubmitting}
-      />
-      {error && <div className="error-message">{error}</div>}
-      <button
-        type="submit"
-        className="submit-button"
-        disabled={!isInitialized || isSubmitting || !comment.trim()}
-      >
-        {isSubmitting ? 'Submitting...' : 'Submit Comment'}
-      </button>
-      {!isInitialized && (
-        <div className="initializing-message">
-          Initializing content filter...
-        </div>
-      )}
-    </form>
-  );
+    return (
+        <form onSubmit={handleSubmit} className="comment-form">
+            <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Enter your comment..."
+                className="comment-textarea"
+                disabled={!isInitialized || isSubmitting}
+            />
+            {error && <div className="error-message">{error}</div>}
+            <button
+                type="submit"
+                className="submit-button"
+                disabled={!isInitialized || isSubmitting || !comment.trim()}
+            >
+                {isSubmitting ? 'Submitting...' : 'Submit Comment'}
+            </button>
+            {!isInitialized && (
+                <div className="initializing-message">
+                    Initializing content filter...
+                </div>
+            )}
+        </form>
+    );
 }
 
 export default CommentForm;
@@ -467,9 +467,9 @@ await muzzle.initialize();
 
 // ❌ Bad: Initialize for every request
 app.post('/comment', async (req, res) => {
-  const muzzle = new Muzzle({ config }); // Don't do this!
-  await muzzle.initialize();
-  // ...
+    const muzzle = new Muzzle({ config }); // Don't do this!
+    await muzzle.initialize();
+    // ...
 });
 ```
 
@@ -486,14 +486,14 @@ Enable caching for URL-based word lists to improve performance and reduce networ
 
 ```typescript
 const config: MuzzleConfig = {
-  textFiltering: {
-    bannedWordsSource: {
-      type: 'url',
-      url: 'https://example.com/word-list.txt',
-      cache: true, // Enable caching
-      refreshInterval: 86400000 // Refresh every 24 hours
+    textFiltering: {
+        bannedWordsSource: {
+            type: 'url',
+            url: 'https://example.com/word-list.txt',
+            cache: true, // Enable caching
+            refreshInterval: 86400000 // Refresh every 24 hours
+        }
     }
-  }
 };
 ```
 
@@ -502,16 +502,16 @@ Always implement proper error handling to ensure your application remains stable
 
 ```typescript
 try {
-  const result = await muzzle.filterText(text);
-  // Process result
+    const result = await muzzle.filterText(text);
+    // Process result
 } catch (error) {
-  // Log error for debugging
-  console.error('Text filtering error:', error);
-  
-  // Show user-friendly message
-  return res.status(500).json({
-    error: 'Content filtering service unavailable'
-  });
+    // Log error for debugging
+    console.error('Text filtering error:', error);
+    
+    // Show user-friendly message
+    return res.status(500).json({
+        error: 'Content filtering service unavailable'
+    });
 }
 ```
 
@@ -533,7 +533,3 @@ console.log('- Memory Usage:', `${Math.round(process.memoryUsage().heapUsed / 10
 - ⚙️ Check out the [Configuration Guide](/configuration/) for advanced configuration options
 - 💡 Browse the [Examples](/examples/) for complete integration patterns
 - 🧪 Learn about [Parameterized Words](/configuration/#parameterized-words) for sophisticated filtering
-
----
-
-**Need help?** Check out our [GitHub repository](https://github.com/your-org/muzzle) or open an issue for support.

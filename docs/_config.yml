@@ -3,18 +3,25 @@ title: Muzzle Text Filtering
 description: A comprehensive text filtering library for Node.js with flexible banned words sources
 url: "https://ovendjs.github.io/Muzzle" # the base hostname & protocol for your site
 baseurl: "/Muzzle" # the subpath of your site, e.g. /blog
+author: Muzzle Contributors
+license: MIT License
+github_url: https://github.com/ovendjs/Muzzle
+version: 1.1.0
 
 # Build settings
 markdown: kramdown
 highlighter: rouge
-theme: jekyll-theme-slate
+theme: null # Using custom theme
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-seo-tag
 
 # Navigation
 header_pages:
   - index.md
   - getting-started.md
   - api-reference.md
-  - examples.md
   - configuration.md
 
 # Exclude from processing
@@ -26,12 +33,16 @@ exclude:
   - vendor/cache/
   - vendor/gems/
   - vendor/ruby/
+  - docs-refactor-plan.md
 
 # Collections
 collections:
   api:
     output: true
     permalink: /:collection/:name/
+  examples:
+    output: true
+    permalink: /examples/:name/
 
 # Defaults
 defaults:
@@ -49,4 +60,13 @@ defaults:
       path: ""
       type: "api"
     values:
-      layout: "api"
+      layout: "page"
+  - scope:
+      path: ""
+      type: "examples"
+    values:
+      layout: "page"
+  - scope:
+      path: "index.md"
+    values:
+      layout: "home"

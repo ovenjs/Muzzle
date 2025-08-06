@@ -1,0 +1,76 @@
+<aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+        <ul class="nav-list">
+            <li class="nav-item">
+                <a href="{{ '/' | relative_url }}" class="nav-link {% if page.url == '/' %}active{% endif %}">
+                    <span class="nav-icon">🏠</span>
+                    <span class="nav-text">Home</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ '/getting-started' | relative_url }}" class="nav-link {% if page.url == '/getting-started/' %}active{% endif %}">
+                    <span class="nav-icon">🚀</span>
+                    <span class="nav-text">Getting Started</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ '/api-reference' | relative_url }}" class="nav-link {% if page.url == '/api-reference/' %}active{% endif %}">
+                    <span class="nav-icon">📚</span>
+                    <span class="nav-text">API Reference</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ '/configuration' | relative_url }}" class="nav-link {% if page.url == '/configuration/' %}active{% endif %}">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-text">Configuration</span>
+                </a>
+            </li>
+            <li class="nav-item nav-section">
+                <div class="nav-section-header">
+                    <span class="nav-icon">💡</span>
+                    <span class="nav-text">Examples</span>
+                    <span class="nav-toggle">▼</span>
+                </div>
+                <ul class="nav-sublist">
+                    <li class="nav-subitem">
+                        <a href="{{ '/examples/' | relative_url }}" class="nav-link {% if page.url == '/examples/' %}active{% endif %}">
+                            <span class="nav-text">Overview</span>
+                        </a>
+                    </li>
+                    <li class="nav-subitem">
+                        <a href="{{ '/examples/express-comment-moderation' | relative_url }}" class="nav-link {% if page.url == '/examples/express-comment-moderation/' %}active{% endif %}">
+                            <span class="nav-text">Express.js Comment Moderation</span>
+                        </a>
+                    </li>
+                    <li class="nav-subitem">
+                        <a href="{{ '/examples/react-form-validation' | relative_url }}" class="nav-link {% if page.url == '/examples/react-form-validation/' %}active{% endif %}">
+                            <span class="nav-text">React Form Validation</span>
+                        </a>
+                    </li>
+                    <li class="nav-subitem">
+                        <a href="{{ '/examples/discord-bot-moderation' | relative_url }}" class="nav-link {% if page.url == '/examples/discord-bot-moderation/' %}active{% endif %}">
+                            <span class="nav-text">Discord Bot Moderation</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+        
+        <div class="sidebar-footer">
+            <div class="sidebar-footer-links">
+                <a href="{{ site.github_url | default: 'https://github.com/ovendjs/Muzzle' }}" target="_blank" rel="noopener noreferrer">
+                    GitHub
+                </a>
+                <a href="{{ site.github_url | default: 'https://github.com/ovendjs/Muzzle' }}/issues" target="_blank" rel="noopener noreferrer">
+                    Issues
+                </a>
+                <a href="{{ site.github_url | default: 'https://github.com/ovendjs/Muzzle' }}/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">
+                    License
+                </a>
+            </div>
+            <div class="sidebar-footer-text">
+                <p>{{ site.title | default: "Muzzle" }} v{{ site.version | default: "1.0.0" }}</p>
+            </div>
+        </div>
+    </nav>
+</aside>
