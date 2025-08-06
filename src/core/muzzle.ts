@@ -16,10 +16,13 @@ import {
   ViolationReport,
   MuzzleStatus,
   ResponseFormatOptions,
+  ReplacementConfig,
+  TextMatch,
 } from '../types';
 
 import { DEFAULT_CONFIG, ConfigValidator } from './config';
 import { TextFilter } from '../modules/text-filter';
+import { ReplacementEngine } from '../modules/replacement/replacement-engine';
 
 /**
  * Main class for the Muzzle text filtering system
@@ -47,6 +50,7 @@ import { TextFilter } from '../modules/text-filter';
 export class Muzzle {
   private config: MuzzleConfig;
   private textFilter?: TextFilter;
+  private replacementEngine?: ReplacementEngine;
   private responseFramework?: any;
   private processingEngine?: any;
   private initialized = false;
@@ -91,6 +95,9 @@ export class Muzzle {
   private initializeModules(options: MuzzleOptions): void {
     // Initialize text filter
     this.textFilter = new TextFilter(this.config.textFiltering || {});
+    
+    // Initialize replacement engine
+    this.replacementEngine = new ReplacementEngine();
 
     // Initialize response framework
     this.responseFramework = {
@@ -227,10 +234,31 @@ export class Muzzle {
       throw new Error('Text filtering is not available');
     }
 
-    return (
+    // Get the basic filtering result
+    const result = (
       this.processingEngine?.process(() => this.textFilter!.filter(text, options)) ||
       this.textFilter.filter(text, options)
     );
+
+    // Apply text replacement if configured
+    const replacementConfig = options?.replacement || this.config.replacement;
+    if (replacementConfig?.enabled && result.matches) {
+      const replacementResult = this.replacementEngine!.applyReplacements(
+        text,
+        result.matches,
+        replacementConfig
+      );
+      
+      // Update the result with replacement information
+      result.matches = result.matches.map((match: TextMatch) => {
+        const replacedMatch = replacementResult.replacedMatches.find((rm: any) =>
+          rm.position.start === match.position.start && rm.position.end === match.position.end
+        );
+        return replacedMatch || match;
+      });
+    }
+
+    return result;
   }
 
   /**
@@ -260,6 +288,7 @@ export class Muzzle {
     options?: {
       text?: TextFilterOptions;
       response?: ResponseFormatOptions;
+      replacement?: ReplacementConfig;
     }
   ): Promise<FilterResult> {
     if (!this.initialized) {
@@ -268,7 +297,7 @@ export class Muzzle {
 
     // Process text
     const textResult = text
-      ? await this.filterText(text, options?.text)
+      ? await this.filterTextWithReplacement(text, options?.text)
       : Promise.resolve(undefined);
 
     // Generate response
@@ -488,5 +517,89 @@ export class Muzzle {
     if (this.config.debug) {
       console.log('Muzzle disposed');
     }
+  }
+
+  /**
+   * Filter text with optional replacement configuration
+   *
+   * This method filters text and applies replacement strategies based on the provided configuration.
+   * It allows for per-request customization of replacement behavior.
+   *
+   * @param text - The text content to filter
+   * @param textOptions - Text filtering options
+   * @param replacementConfig - Replacement configuration (overrides global if provided)
+   * @returns Promise that resolves with filtering results including replacements
+   * @private
+   */
+  private async filterTextWithReplacement(
+    text: string,
+    textOptions?: TextFilterOptions,
+    replacementConfig?: ReplacementConfig
+  ): Promise<TextMatchResult> {
+    // Get the basic filtering result
+    const result = await this.filterText(text, textOptions);
+
+    // Apply text replacement if configured
+    const configToUse = replacementConfig || this.config.replacement;
+    if (configToUse?.enabled) {
+      const replacementResult = this.replacementEngine!.applyReplacements(
+        text,
+        result.matches,
+        configToUse
+      );
+      
+      // Update the result with replacement information
+      result.matches = result.matches.map(match => {
+        const replacedMatch = replacementResult.replacedMatches.find((rm: any) =>
+          rm.position.start === match.position.start && rm.position.end === match.position.end
+        );
+        return replacedMatch || match;
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Get the modified text with replacements applied
+   *
+   * This method returns the text after all replacements have been applied,
+   * which can be useful for displaying the filtered content to users.
+   *
+   * @param text - The original text to process
+   * @param options - Filtering and replacement options
+   * @returns Promise that resolves with the modified text
+   */
+  async getFilteredText(
+    text: string,
+    options?: {
+      text?: TextFilterOptions;
+      replacement?: ReplacementConfig;
+    }
+  ): Promise<string> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    const replacementConfig = options?.replacement || (this.config as any).replacement;
+    
+    if (!replacementConfig?.enabled) {
+      return text;
+    }
+
+    // Get matches and apply replacements
+    const textResult = await this.filterTextWithReplacement(
+      text,
+      options?.text,
+      replacementConfig
+    );
+
+    const replacementResult = this.replacementEngine!.applyReplacements(
+      text,
+      textResult.matches,
+      replacementConfig
+    );
+
+    return replacementResult.modifiedText;
   }
 }

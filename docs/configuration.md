@@ -10,7 +10,7 @@ This guide provides detailed information about configuring Muzzle for different 
 
 ## 📋 Overview
 
-Muzzle uses a flexible configuration system that allows you to customize every aspect of the text filtering behavior. Configuration is done through the `MuzzleConfig` interface, which supports various options for text filtering, processing, and response formatting.
+Muzzle uses a flexible configuration system that allows you to customize every aspect of the text filtering behavior. Configuration is done through the `MuzzleConfig` interface, which supports various options for text filtering, processing, response formatting, and text replacement.
 
 ## 🏗️ Basic Configuration Structure
 
@@ -20,6 +20,9 @@ import { MuzzleConfig } from '@ovendjs/muzzle';
 interface MuzzleConfig {
     // Text filtering configuration
     textFiltering?: TextFilteringConfig;
+    
+    // Text replacement configuration
+    replacement?: ReplacementConfig;
     
     // Processing configuration
     processing?: ProcessingConfig;
@@ -300,6 +303,123 @@ const config: MuzzleConfig = {
 - Use batch processing for filtering multiple texts
 - Enable caching for URL and file-based word lists
 
+## 🔄 Text Replacement Configuration
+
+Configure how matched content should be replaced or handled.
+
+```typescript
+const config: MuzzleConfig = {
+    replacement: {
+        enabled: true,                    // Enable text replacement
+        strategy: 'asterisks',            // Replacement strategy
+        customString: '[REDACTED]',       // Custom replacement string
+        asteriskChar: '*',                // Character for asterisk replacement
+        asteriskCount: 'full',            // Number of characters to replace with
+        preserveBoundaries: true,         // Preserve word boundaries
+        preserveCase: true,               // Preserve original word case
+        wholeWordOnly: true               // Replace only whole words
+    }
+};
+```
+
+### ⚙️ Replacement Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | `boolean` | `false` | Whether to enable text replacement |
+| `strategy` | `'asterisks' \| 'custom' \| 'remove' \| 'none'` | `'asterisks'` | Replacement strategy to use |
+| `customString` | `string` | `'[REDACTED]'` | Custom replacement string (for 'custom' strategy) |
+| `asteriskChar` | `string` | `'*'` | Character to use for asterisk replacement |
+| `asteriskCount` | `'full' \| number` | `'full'` | Number of characters to replace with |
+| `preserveBoundaries` | `boolean` | `true` | Whether to preserve word boundaries |
+| `preserveCase` | `boolean` | `true` | Whether to preserve original word case |
+| `wholeWordOnly` | `boolean` | `true` | Whether to replace only whole words |
+
+### 🔧 Replacement Strategies
+
+Muzzle supports several replacement strategies:
+
+1. **Asterisks (`asterisks`)**: Replace matched words with asterisks
+   ```typescript
+   const config = {
+       replacement: {
+           enabled: true,
+           strategy: 'asterisks',
+           preserveCase: true,
+           asteriskChar: '*',
+           asteriskCount: 'full'
+       }
+   };
+   ```
+
+2. **Custom String (`custom`)**: Replace with a custom string
+   ```typescript
+   const config = {
+       replacement: {
+           enabled: true,
+           strategy: 'custom',
+           customString: '[REDACTED]',
+           preserveCase: false
+       }
+   };
+   ```
+
+3. **Removal (`remove`)**: Completely remove matched words
+   ```typescript
+   const config = {
+       replacement: {
+           enabled: true,
+           strategy: 'remove'
+       }
+   };
+   ```
+
+4. **None (`none`)**: No replacement (disabled)
+   ```typescript
+   const config = {
+       replacement: {
+           enabled: false,
+           strategy: 'none'
+       }
+   };
+   ```
+
+### 📋 Replacement Examples
+
+```typescript
+// Asterisk replacement (default)
+const config1 = {
+    replacement: {
+        enabled: true,
+        strategy: 'asterisks',
+        preserveCase: true
+    }
+};
+// Input: "This is bad text"
+// Output: "This is *** text"
+
+// Custom string replacement
+const config2 = {
+    replacement: {
+        enabled: true,
+        strategy: 'custom',
+        customString: '[MODERATED]'
+    }
+};
+// Input: "This is bad text"
+// Output: "This is [MODERATED] text"
+
+// Removal replacement
+const config3 = {
+    replacement: {
+        enabled: true,
+        strategy: 'remove'
+    }
+};
+// Input: "This is bad text"
+// Output: "This is  text"
+```
+
 ## 🏷️ Parameterized Words
 
 Parameterized words allow you to add metadata to banned words for more sophisticated filtering and categorization.
@@ -529,7 +649,7 @@ const config: MuzzleConfig = {
 
 ## 🌍 Environment Variables
 
-Muzzle can be configured using environment variables with the `MUZZLE_` prefix:
+You can also configure Muzzle using environment variables with the `MUZZLE_` prefix:
 
 ```bash
 # Text filtering settings
@@ -549,18 +669,27 @@ MUZZLE_TEXT_BANNED_WORDS_SOURCE_STRING=badword,profanity,swear
 
 **📋 Supported Environment Variables:**
 
-| Variable | Type | Description |
-|----------|------|-------------|
-| `MUZZLE_TEXT_CASE_SENSITIVE` | `boolean` | Enable case-sensitive matching |
-| `MUZZLE_TEXT_WHOLE_WORD` | `boolean` | Enable whole-word matching |
-| `MUZZLE_TEXT_MAX_TEXT_LENGTH` | `number` | Maximum text length to process |
-| `MUZZLE_PROCESSING_ASYNC` | `boolean` | Enable asynchronous processing |
-| `MUZZLE_PROCESSING_BATCH_SIZE` | `number` | Default batch size |
-| `MUZZLE_PROCESSING_CONCURRENCY_MAX` | `number` | Maximum concurrent operations |
-| `MUZZLE_TEXT_BANNED_WORDS_SOURCE_TYPE` | `string` | Banned words source type |
-| `MUZZLE_TEXT_BANNED_WORDS_SOURCE_STRING` | `string` | String source content |
-| `MUZZLE_TEXT_BANNED_WORDS_SOURCE_URL` | `string` | URL source location |
-| `MUZZLE_TEXT_BANNED_WORDS_SOURCE_PATH` | `string` | File source path |
+| Environment Variable | Configuration Option |
+|----------------------|---------------------|
+| `MUZZLE_DEBUG` | `debug` |
+| `MUZZLE_LOG_LEVEL` | `logLevel` |
+| `MUZZLE_TEXT_CASE_SENSITIVE` | `textFiltering.caseSensitive` |
+| `MUZZLE_TEXT_WHOLE_WORD` | `textFiltering.wholeWord` |
+| `MUZZLE_TEXT_EXACT_PHRASE` | `textFiltering.exactPhrase` |
+| `MUZZLE_TEXT_MAX_LENGTH` | `textFiltering.maxTextLength` |
+| `MUZZLE_TEXT_PREPROCESS` | `textFiltering.preprocessText` |
+| `MUZZLE_REPLACEMENT_ENABLED` | `replacement.enabled` |
+| `MUZZLE_REPLACEMENT_STRATEGY` | `replacement.strategy` |
+| `MUZZLE_REPLACEMENT_CUSTOM_STRING` | `replacement.customString` |
+| `MUZZLE_PROCESSING_ASYNC` | `processing.async` |
+| `MUZZLE_PROCESSING_BATCH_SIZE` | `processing.batch.size` |
+| `MUZZLE_PROCESSING_BATCH_TIMEOUT` | `processing.batch.timeout` |
+| `MUZZLE_PROCESSING_CONCURRENCY` | `processing.concurrency.max` |
+| `MUZZLE_PROCESSING_TIMEOUT_TEXT` | `processing.timeout.text` |
+| `MUZZLE_PROCESSING_TIMEOUT_OVERALL` | `processing.timeout.overall` |
+| `MUZZLE_CACHE_TTL` | `caching.defaultTTL` |
+| `MUZZLE_CACHE_MAX_SIZE` | `caching.maxSize` |
+| `MUZZLE_CACHE_CLEANUP_INTERVAL` | `caching.cleanupInterval` |
 
 **💡 Usage Example:**
 
@@ -673,6 +802,77 @@ When updating configuration, Muzzle will:
     - Implement different actions based on severity levels
     - Use context-aware filtering for better user experience
 
+### 7. Configure Text Replacement Appropriately
+    - Choose the right replacement strategy for your use case
+    - Consider preserving case and boundaries for better readability
+    - Test replacement strategies with your specific content
+
 ---
+
+## 📋 Default Configuration
+
+Muzzle provides sensible defaults for all configuration options:
+
+```typescript
+const DEFAULT_CONFIG = {
+    debug: false,
+    logLevel: 'info',
+    textFiltering: {
+        caseSensitive: false,
+        wholeWord: true,
+        exactPhrase: false,
+        useRegex: false,
+        bannedWordsSource: {
+            type: 'default',
+            refreshInterval: 86400000,
+            format: 'text',
+            cache: true,
+            ttl: 86400000,
+        },
+        maxTextLength: 1000000,
+        preprocessText: true,
+    },
+    replacement: {
+        enabled: false,
+        strategy: 'asterisks',
+        customString: '[REDACTED]',
+        asteriskChar: '*',
+        asteriskCount: 'full',
+        preserveBoundaries: true,
+        preserveCase: true,
+        wholeWordOnly: true,
+    },
+    processing: {
+        async: true,
+        batch: {
+            enabled: true,
+            size: 50,
+            timeout: 30000,
+        },
+        concurrency: {
+            max: 10,
+            queueSize: 100,
+        },
+        timeout: {
+            text: 10000,
+            overall: 30000,
+        },
+    },
+    caching: {
+        defaultTTL: 3600000,
+        maxSize: 1000,
+        cleanupInterval: 300000,
+        backend: {
+            type: 'memory',
+        },
+    },
+    response: {
+        format: 'detailed',
+        includeMatches: true,
+        includeSeverity: true,
+        includeMetadata: true,
+    },
+};
+```
 
 **Need help?** Check out our [GitHub repository](https://github.com/your-org/muzzle) or open an issue for support.

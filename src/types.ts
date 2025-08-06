@@ -27,6 +27,8 @@ export interface MuzzleConfig {
   caching?: CacheConfig;
   /** Configuration for response formatting */
   response?: ResponseConfig;
+  /** Configuration for text replacement behavior */
+  replacement?: ReplacementConfig;
 }
 
 /**
@@ -106,6 +108,8 @@ export interface TextFilteringConfig {
   preprocessText?: boolean;
   /** Configuration for handling parameterized words */
   parameterHandling?: ParameterHandlingConfig;
+  /** Configuration for text replacement behavior */
+  replacement?: ReplacementConfig;
 }
 
 /**
@@ -160,6 +164,8 @@ export interface TextFilterOptions {
   exactPhrase?: boolean;
   /** Override regex usage setting */
   useRegex?: boolean;
+  /** Override replacement configuration */
+  replacement?: ReplacementConfig;
 }
 
 /**
@@ -201,6 +207,31 @@ export interface TextMatch {
   severity?: number;
   /** Parameters associated with the matched word (if parameterized) */
   parameters?: WordParameters;
+  /** Replacement text for this match (if configured) */
+  replacement?: string | undefined;
+}
+
+/**
+ * Configuration for text replacement behavior.
+ * Defines how matched content should be replaced or handled.
+ */
+export interface ReplacementConfig {
+  /** Whether to enable text replacement (default: false) */
+  enabled?: boolean;
+  /** Replacement strategy to use */
+  strategy?: 'asterisks' | 'custom' | 'remove' | 'none';
+  /** Custom replacement string (used when strategy is 'custom') */
+  customString?: string;
+  /** Character to use for asterisk replacement (default: '*') */
+  asteriskChar?: string;
+  /** Number of characters to replace with asterisks (default: word length) */
+  asteriskCount?: 'full' | number;
+  /** Whether to preserve word boundaries when replacing (default: true) */
+  preserveBoundaries?: boolean;
+  /** Whether to apply case-sensitive replacement (default: true) */
+  preserveCase?: boolean;
+  /** Whether to replace only whole words or partial matches (default: true) */
+  wholeWordOnly?: boolean;
 }
 
 // Caching Types

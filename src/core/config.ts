@@ -10,7 +10,7 @@
  * @description Configuration management system for Muzzle with validation and loading capabilities
  */
 
-import { MuzzleConfig, ValidationResult } from '../types';
+import { MuzzleConfig, ValidationResult, ReplacementConfig } from '../types';
 
 // Import Node.js modules
 const fs = require('fs');
@@ -87,6 +87,13 @@ export class ConfigValidator {
       const cachingValidation = this.validateCaching(config.caching);
       errors.push(...cachingValidation.errors);
       warnings.push(...cachingValidation.warnings);
+    }
+
+    // Validate replacement configuration
+    if (config.replacement) {
+      const replacementValidation = this.validateReplacement(config.replacement);
+      errors.push(...replacementValidation.errors);
+      warnings.push(...replacementValidation.warnings);
     }
 
     return { errors, warnings };
@@ -226,6 +233,48 @@ export class ConfigValidator {
     // Validate max size
     if (config.maxSize && config.maxSize < 100) {
       warnings.push('Very small cache size may cause frequent evictions');
+    }
+
+    return { errors, warnings };
+  }
+
+  /**
+   * Validates replacement configuration
+   *
+   * This method validates replacement-related settings including strategy selection,
+   * custom strings, and other replacement options.
+   *
+   * @param config - Replacement configuration object to validate
+   * @returns ValidationResult with errors and warnings specific to replacement
+   * @private
+   */
+  private static validateReplacement(config: ReplacementConfig): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Validate strategy
+    if (config.strategy && !['asterisks', 'custom', 'remove', 'none'].includes(config.strategy)) {
+      errors.push('Invalid replacement strategy');
+    }
+
+    // Validate custom string for custom strategy
+    if (config.strategy === 'custom' && !config.customString) {
+      errors.push('Custom replacement strategy requires a custom string');
+    }
+
+    // Validate custom string length
+    if (config.customString && config.customString.length > 1000) {
+      warnings.push('Very long custom replacement string may impact performance');
+    }
+
+    // Validate asterisk count
+    if (config.asteriskCount && typeof config.asteriskCount !== 'number' && config.asteriskCount !== 'full') {
+      errors.push('Asterisk count must be a number or "full"');
+    }
+
+    // Validate asterisk character
+    if (config.asteriskChar && config.asteriskChar.length !== 1) {
+      errors.push('Asterisk character must be a single character');
     }
 
     return { errors, warnings };
@@ -530,5 +579,15 @@ export const DEFAULT_CONFIG: MuzzleConfig = {
     includeMatches: true,
     includeSeverity: true,
     includeMetadata: true,
+  },
+  replacement: {
+    enabled: false,
+    strategy: 'asterisks',
+    customString: '[REDACTED]',
+    asteriskChar: '*',
+    asteriskCount: 'full',
+    preserveBoundaries: true,
+    preserveCase: true,
+    wholeWordOnly: true,
   },
 };
