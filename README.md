@@ -54,8 +54,8 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 ### Development Setup
 
 ```bash
-git clone https://github.com/ovendjs/muzzle.git
-cd muzzle
+git clone https://github.com/ovenjs/Muzzle.git
+cd Muzzle
 npm install
 npm run build
 npm test
@@ -63,7 +63,7 @@ npm test
 
 ## Documentation
 
-For detailed documentation, examples, and API reference, visit our [Documentation](https://ovendjs.github.io/muzzle/).
+For detailed documentation, examples, and API reference, visit our [Documentation](https://ovendjs.github.io/Muzzle/).
 
 ## License
 
