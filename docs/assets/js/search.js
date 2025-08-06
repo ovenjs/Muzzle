@@ -8,30 +8,49 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     
-    // Simple search implementation using page content
-    // In a real implementation, this would use a proper search index
-    let searchIndex = [];
-    
-    // Build search index from page content
-    function buildSearchIndex() {
-        // For a static site, we would typically pre-build this index
-        // For this example, we'll use a simple approach with the current page
-        const pageTitle = document.title;
-        const pageContent = document.querySelector('.page-content')?.textContent || '';
-        const pageUrl = window.location.pathname;
-        
-        searchIndex = [{
-            title: pageTitle,
-            url: pageUrl,
-            content: pageContent.substring(0, 500) + '...' // Truncate for preview
-        }];
-        
-        // In a real implementation, we would include all pages in the site
-        // This is a simplified version for demonstration
-    }
-    
-    // Initialize search index
-    buildSearchIndex();
+    // Search index for all documentation pages
+    let searchIndex = [
+        {
+            title: "Muzzle Documentation",
+            url: "/",
+            content: "Muzzle is a powerful text filtering library for Node.js applications. It provides real-time content filtering with customizable word lists and parameterized filtering."
+        },
+        {
+            title: "Getting Started",
+            url: "/getting-started/",
+            content: "Welcome to Muzzle! This guide will help you get up and running with Muzzle in your Node.js application in just a few minutes. Installation, basic usage, custom banned words, advanced configuration, batch processing, error handling, integration examples, best practices."
+        },
+        {
+            title: "API Reference",
+            url: "/api-reference/",
+            content: "Muzzle API Reference. Muzzle class, constructor, initialize method, filterText method, filterBatch method, getStatus method, MuzzleConfig interface, TextFilteringOptions interface, BannedWordsSource interface, ParameterHandlingOptions interface, FilterResult interface, BatchResult interface, StatusResult interface, WordMatch interface, Error types."
+        },
+        {
+            title: "Configuration",
+            url: "/configuration/",
+            content: "Muzzle Configuration Guide. Text filtering options, banned words source, case sensitivity, whole word matching, exact phrase matching, maximum text length, text preprocessing, parameter handling, severity mapping, examples, advanced configuration."
+        },
+        {
+            title: "Examples",
+            url: "/examples/",
+            content: "Muzzle Examples. Explore practical examples of using Muzzle in different applications and frameworks. Express comment moderation, React form validation, Discord bot moderation."
+        },
+        {
+            title: "Express Comment Moderation",
+            url: "/examples/express-comment-moderation/",
+            content: "Express Comment Moderation Example. This example demonstrates how to implement comment moderation in an Express.js application using Muzzle to filter inappropriate content in real-time. Problem statement, prerequisites, implementation, project setup, create the Express app, configure Muzzle, implement middleware, test the implementation, explanation, key features, variations, next steps."
+        },
+        {
+            title: "React Form Validation",
+            url: "/examples/react-form-validation/",
+            content: "React Form Validation Example. This example demonstrates how to implement real-time text validation in React forms using Muzzle to provide immediate feedback to users when they enter inappropriate content. Problem statement, prerequisites, implementation, project setup, create the comment form component, add CSS styles, update the app component, run the application, test the implementation, explanation, key features, variations, next steps."
+        },
+        {
+            title: "Discord Bot Moderation",
+            url: "/examples/discord-bot-moderation/",
+            content: "Discord Bot Moderation Example. This example demonstrates how to create a Discord bot that automatically moderates messages using Muzzle to filter inappropriate content in real-time. Problem statement, prerequisites, implementation, project setup, configure environment variables, create the bot structure, set up the database, configure Muzzle, create logger utility, create event handlers, create slash commands, create the main bot file, test the implementation, explanation, key features, variations, next steps."
+        }
+    ];
     
     // Handle search input
     let searchTimeout;
@@ -51,13 +70,53 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Perform search
     function performSearch(query) {
-        const results = searchIndex.filter(item => {
-            const searchTerm = query.toLowerCase();
-            return (
-                item.title.toLowerCase().includes(searchTerm) ||
-                item.content.toLowerCase().includes(searchTerm)
-            );
-        });
+        const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
+        
+        if (searchTerms.length === 0) {
+            searchResults.classList.remove('active');
+            return;
+        }
+        
+        const results = searchIndex.map(item => {
+            let score = 0;
+            let titleMatches = [];
+            let contentMatches = [];
+            
+            // Calculate relevance score
+            searchTerms.forEach(term => {
+                // Check title matches (higher weight)
+                const titleLower = item.title.toLowerCase();
+                const titleIndex = titleLower.indexOf(term);
+                if (titleIndex !== -1) {
+                    score += 10; // Higher weight for title matches
+                    titleMatches.push({
+                        term: term,
+                        index: titleIndex
+                    });
+                }
+                
+                // Check content matches
+                const contentLower = item.content.toLowerCase();
+                let contentIndex = contentLower.indexOf(term);
+                while (contentIndex !== -1) {
+                    score += 1;
+                    contentMatches.push({
+                        term: term,
+                        index: contentIndex
+                    });
+                    contentIndex = contentLower.indexOf(term, contentIndex + 1);
+                }
+            });
+            
+            return {
+                item: item,
+                score: score,
+                titleMatches: titleMatches,
+                contentMatches: contentMatches
+            };
+        })
+        .filter(result => result.score > 0) // Only include results with a score > 0
+        .sort((a, b) => b.score - a.score); // Sort by score (descending)
         
         displaySearchResults(results, query);
     }
@@ -77,17 +136,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 const resultItem = document.createElement('div');
                 resultItem.className = 'search-result-item';
                 
-                // Highlight search term in title and content
-                const highlightedTitle = highlightText(result.title, query);
-                const highlightedContent = highlightText(result.content, query);
+                // Highlight search terms in title and content
+                const highlightedTitle = highlightText(result.item.title, query);
+                
+                // Generate excerpt with highlighted terms
+                const excerpt = generateExcerpt(result.item.content, result.contentMatches, query);
                 
                 resultItem.innerHTML = `
                     <div class="search-result-title">${highlightedTitle}</div>
-                    <div class="search-result-excerpt">${highlightedContent}</div>
+                    <div class="search-result-excerpt">${excerpt}</div>
                 `;
                 
                 resultItem.addEventListener('click', function() {
-                    window.location.href = result.url;
+                    window.location.href = result.item.url;
                 });
                 
                 searchResults.appendChild(resultItem);
@@ -97,12 +158,44 @@ document.addEventListener('DOMContentLoaded', function() {
         searchResults.classList.add('active');
     }
     
+    // Generate excerpt with highlighted search terms
+    function generateExcerpt(content, matches, query) {
+        if (!matches || matches.length === 0) {
+            return content.substring(0, 150) + '...';
+        }
+        
+        // Sort matches by position
+        matches.sort((a, b) => a.index - b.index);
+        
+        // Get the first match position
+        const firstMatch = matches[0];
+        const startPos = Math.max(0, firstMatch.index - 50);
+        const endPos = Math.min(content.length, startPos + 200);
+        
+        let excerpt = content.substring(startPos, endPos);
+        if (startPos > 0) {
+            excerpt = '...' + excerpt;
+        }
+        if (endPos < content.length) {
+            excerpt = excerpt + '...';
+        }
+        
+        return highlightText(excerpt, query);
+    }
+    
     // Highlight text matching search query
     function highlightText(text, query) {
         if (!query) return text;
         
-        const regex = new RegExp(`(${query})`, 'gi');
-        return text.replace(regex, '<mark>$1</mark>');
+        const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
+        let highlightedText = text;
+        
+        searchTerms.forEach(term => {
+            const regex = new RegExp(`(${term})`, 'gi');
+            highlightedText = highlightedText.replace(regex, '<mark>$1</mark>');
+        });
+        
+        return highlightedText;
     }
     
     // Hide search results when clicking outside
